@@ -1,0 +1,29 @@
+{
+  "name": "patch-steward",
+  "version": "0.0.1",
+  "description": "Assist maintainers by screening, validating, verifying, and improving GitHub pull requests before human review.",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage --coverage.reporter=lcov",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "keywords": [],
+  "author": "John Bolton",
+  "license": "MIT",
+  "packageManager": "pnpm@10.20.0",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.2",
+    "@vitest/coverage-v8": "^5.0.1",
+    "eslint": "^10.10.0",
+    "prettier": "^3.9.6",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^5.0.1"
+  }
+}
