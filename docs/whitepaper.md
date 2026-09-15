@@ -2,47 +2,93 @@
 
 ## Abstract
 
-Open-source maintainers face a flood of low-quality pull requests: reports of
-behavior that is not a bug, incomplete or defective fixes, and changes that
-regress unrelated functionality. Patch Steward assists project maintainers by
-screening, validating, verifying, and improving pull requests before human review.
-It combines LLM investigation with reproducible test execution to assess claims,
-identify needed improvements, and reduce the maintainer's review workload.
+This is a **WORK IN PROGRESS**.
 
-The project will provide a local TypeScript/Node.js CLI application backed by an
-internal screening core. It will interface directly with LLM APIs, GitHub APIs, Git,
-and existing build and test tools. Passing screening means a change has met
-defined evidence requirements; it does not certify correctness or authorize
-automatic merging.
+Low-quality issues, security reports, pull requests, and replies can arrive faster
+than open-source maintainers can assess them. Unsupported claims, missing
+reproductions, unsuitable fixes, and absent contributor follow-through transfer
+investigation and completion work to reviewers. Excessive reporting and automated
+discussion add triage and moderation work. The resulting burden delays development
+and credible security work and damages maintainer motivation and retention.
+
+Patch Steward's goal is to alleviate these problems, as defined in the
+[problem statement](problem-statement.md). Its proposed local and GitHub-hosted
+tools combine LLM investigation, reproducible execution evidence, and concise
+contributor feedback to establish whether claims are valid, changes serve the
+project, and submissions are ready for substantive human review. Contributors
+remain responsible for understanding and completing their work.
+
+The project will interface directly with LLM APIs, GitHub APIs, Git, and existing
+build and test tools. Success requires measured workload reduction while
+preserving access for valid contributions. Screening evaluates evidence and
+project fit regardless of authorship; a pass records satisfaction of defined
+requirements, with acceptance and merge authority retained by maintainers.
 
 ## 1. Origin and scope
 
-This whitepaper consolidates the substantive requirements, methodology,
-components, and implementation decisions from the originating conversation on
-September 14-15, 2026. It is an edited account of that discussion, not a verbatim
-transcript. Product behavior described here is proposed unless explicitly
-identified as implemented.
+This whitepaper develops the methodology, components, and implementation
+decisions from the originating conversation on September 14-15, 2026, around the
+goal of alleviating the review burden documented in the
+[problem statement](problem-statement.md). That document defines the problems
+and their supporting evidence. Product behavior described here is proposed unless
+explicitly identified as implemented.
 
-The initial request was for a methodology using ChatGPT to screen submissions
-before maintainer review, with automation wherever practical. Follow-up
-discussion established the component inventory, local execution, TypeScript as
-the implementation language, and direct LLM/GitHub API connectivity.
+The problem scope includes issues, security reports, pull requests, and review
+exchanges: disproportionate review effort, unsupported evidence, unjustified
+defect claims, missing reproduction and applicability, unsuitable patches,
+missing contributor support, excessive reporting, unproductive automation,
+misaligned incentives, displaced maintenance, and maintainer exhaustion
+(P01-P11). The proposed response centers on contributor preparation, claim
+validation, patch verification, concise feedback, and evidence-based routing.
+The detailed execution workflow below focuses on GitHub issues and pull requests;
+security reports also inform the requirements and evaluation cases.
 
-The current repository contains a development scaffold and this design. It does
-not yet perform screening, call provider APIs, create sandboxes, or publish
-GitHub results.
+The project aims to reduce the investigation work transferred to maintainers and
+the resulting delays and emotional burden. It cannot by itself change bounty
+incentives, guarantee contributor participation, or resolve harassment and
+burnout. AI assistance, inexpensive generation, legitimate remediation work,
+policy differences, and lost learning opportunities are distinguished from the
+core review-quality problem (N01-N05).
+
+Admission fairness, shared handling guidance, and evidence that screening works
+are design and evaluation concerns (O01-O03). The response must preserve paths
+for legitimate contributors, provide clear evidence requirements and dismissal
+reasons, and measure its own workload and errors.
 
 ## 2. Goals and limits
 
 ### Goals
 
-- Reduce maintainer attention spent on unsupported bug claims and defective fixes.
-- Establish whether expected behavior is justified before evaluating a patch.
-- Require reproducible before-and-after evidence.
-- Detect incomplete fixes and regressions beyond the edited code.
-- Automate collection, execution, reporting, and routing.
-- Give contributors actionable feedback before requesting review.
-- Preserve an auditable path for ambiguity, appeals, and maintainer overrides.
+The primary goal is to reduce avoidable maintainer work caused by low-quality
+contributions, preserving capacity and motivation for useful maintenance,
+security work, and community growth. The following goals map to the problem
+statement's issue identifiers:
+
+- **Justify review effort (P01, P03, P05):** establish that the claimed problem
+  exists, the expected behavior has an authoritative basis, and the proposed
+  benefit and design fit the project before substantial patch review.
+- **Verify claims and applicability (P02, P04):** check that cited APIs, code,
+  and references exist and support the claim; require reproducible evidence in
+  a supported environment and distinguish project defects from misuse or
+  failures in another application.
+- **Verify fixes in context (P05):** require before-and-after evidence for bug
+  fixes, assess design and completeness, and check for regressions beyond the
+  edited code. Passing tests alone cannot establish that a change is wanted.
+- **Support contributor responsibility (P06, P09):** give actionable preflight
+  feedback and request missing evidence, explanations, and revisions from the
+  contributor, reducing the unfinished investigation handed to maintainers.
+- **Keep triage and automation useful (P07, P08):** produce concise evidence and
+  specific findings, consolidate automated updates, and leave unsupported
+  severity claims and ambiguous intent for maintainer assessment.
+- **Protect maintainer capacity (P01, P10, P11):** automate bounded collection,
+  execution, reporting, and routing to reduce repeated investigation, queue
+  pressure, and avoidable exchanges that displace development and security work.
+- **Preserve fair, auditable handling (O01, O02):** state evidence requirements
+  and decision reasons, distinguish uncertainty from poor quality, and support
+  appeals and maintainer overrides without treating AI use alone as a defect.
+- **Demonstrate net benefit (O03):** measure maintainer time saved, invalid
+  submissions admitted, valid contributions blocked, contributor retries and
+  abandonment, and screening cost and latency before enforcing admission rules.
 
 ### Limits
 
@@ -298,18 +344,11 @@ thresholds. They were not resolved in the conversation.
 
 ## 15. References
 
-### Maintainer accounts and contribution policies
+### Blog Posts & Articles
 
 - [Stay away from my trash! — Steve Ruiz](https://tldraw.dev/blog/stay-away-from-my-trash)
   (January 17, 2026): AI-generated PRs can pass tests while misunderstanding
   project needs, ignoring existing patterns, and lacking author follow-through.
-- [tldraw contributions policy](https://github.com/tldraw/tldraw/issues/7695)
-  (January 15, 2026): explains automatically closing external PRs because
-  misleading context and low engagement overwhelm maintainer review capacity.
-- [Ghostty contribution policy](https://github.com/ghostty-org/ghostty/blob/main/CONTRIBUTING.md):
-  requires contributors to understand their changes and obtain a maintainer's
-  endorsement before submitting PRs, addressing low-quality submissions and
-  erosion of trust.
 - [Death by a thousand slops — Daniel Stenberg](https://daniel.haxx.se/blog/2025/07/14/death-by-a-thousand-slops/)
   (July 14, 2025): quantifies curl's false-report burden and maintainer exhaustion,
   with links to actual submissions.
@@ -322,14 +361,51 @@ thresholds. They were not resolved in the conversation.
 - [OpenSSF AI-slop working-group discussion](https://github.com/ossf/wg-vulnerability-disclosures/issues/178):
   collects maintainer accounts, project policies, and proposed mitigations for
   low-quality AI-generated reports and contributions.
+- [The end of the curl bug bounty — Daniel Stenberg](https://daniel.haxx.se/blog/2026/01/26/the-end-of-the-curl-bug-bounty/):
+  explains ending monetary rewards and moving reports to GitHub to reduce
+  low-quality submissions and maintainer exhaustion.
+- [Security Issues and Volunteers — Benjamin Peterson](https://www.locrian.net/writing/open-source-security/):
+  describes how bogus reports, disclosure work, and bounty expectations burden
+  volunteer CPython maintainers, predating generative AI.
+- [Respecting maintainer time should be in security policies — Seth Larson](https://sethmlarson.dev/respecting-maintainer-time-should-be-in-security-policies):
+  proposes short initial reports, optional proof-of-concept scripts, and
+  maintainer-led severity assessment to reduce triage effort.
+- [Maintaining open source in the age of generative AI — Adrin Jalali and Cailean Osborne](https://blog.probabl.ai/maintaining-open-source-age-of-gen-ai):
+  recommends explicit AI policies, agent guidance, and contributor understanding,
+  testing, and accountability to protect maintainer time.
+- [The Generative AI Policy Landscape in Open Source — Kate Holterhoff](https://redmonk.com/kholterhoff/2026/02/26/generative-ai-policy-landscape-in-open-source/):
+  maps project AI policies by permissiveness, disclosure requirements, adoption
+  date, and concerns about quality, copyright, and ethics.
 
-### Technical references from the discussion
+### Project Policies & Changes
 
-- [GitHub status checks](https://docs.github.com/en/pull-requests/reference/status-checks):
-  required checks govern merge eligibility.
-- [GitHub secure use reference](https://docs.github.com/en/actions/reference/security/secure-use):
-  workflow permissions and risks of executing untrusted changes.
-- [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs):
-  schema-constrained model responses, distinct from factual validation.
-- [Python subprocess documentation](https://docs.python.org/3/library/subprocess.html):
-  background for the initial language comparison; Python was not selected.
+- [LLVM AI Tool Use Policy](https://llvm.org/docs/AIToolPolicy.html):
+  requires human review, contributor accountability, and disclosure of substantial
+  AI assistance; contributions should justify their review cost.
+- [Selenium AI-assisted contribution policy PR](https://github.com/SeleniumHQ/selenium/pull/17043):
+  adds human accountability and AI disclosure requirements, prohibits autonomous
+  PRs and commits, and updates the contribution template.
+- [Django AI disclosure requirement](https://github.com/django/django/commit/0f60102444d8a2cfb662a7b11b3911b52567ee54):
+  requires security reporters to disclose AI tools and their uses, verify
+  reproducibility, and exclude fabricated content.
+- [Node.js HackerOne Signal Requirement](https://nodejs.org/en/blog/announcements/hackerone-signal-requirement):
+  requires a Signal score of at least 1.0 to reduce low-quality reports; an update
+  directs researchers without Signal to security stewards through Slack.
+- [Addressing AI-slop in security reports — Apache Log4j](https://github.com/apache/logging-log4j2/discussions/4052):
+  describes report overload slowing development and prioritizing credible reports
+  while deferring questionable ones within limited volunteer time.
+
+### Examples & Data
+
+- [AI slop security reports submitted to curl (gist)](https://gist.github.com/bagder/07f7581f6e3d78ef37dfbfc81fd1d1cd):
+  catalogs HackerOne security reports identified by curl's maintainer as AI slop,
+  with links to individual submissions.
+
+### Talks & Events
+
+- [FOSDEM 2026: OSS in Spite of AI](https://fosdem.org/2026/schedule/event/B7YKQ7-oss-in-spite-of-ai/):
+  Daniel Stenberg's talk covers both maintainer overload from false AI reports
+  and useful vulnerability discoveries by newer AI tools.
+- [GVIP Summit AI-Slop Session](https://www.gvip-project.org/summit01/agenda/#aislop):
+  Jarek Potiuk's session explores triage burnout and coordinated standards for
+  identifying and dismissing low-quality automated vulnerability reports.
