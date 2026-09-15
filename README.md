@@ -1,64 +1,53 @@
 # Patch Steward
 
-Patch Steward is a planned local TypeScript/Node.js tool that assists project
-maintainers by screening, validating, verifying, and improving GitHub pull requests
-before maintainer review.
+Patch Steward is a set of local and GitHub-hosted tools to help
+contributors and maintainers validate, verify, improve, and screen issues,
+security reports, and pull requests before substantive maintainer review.
 
 ## Goal
 
-Reduce maintainer workload by preparing pull requests for human review: assess bug
-claims, validate and improve proposed fixes, and check for regressions. LLM analysis
-and reproducible test evidence support this work; an AI approval score alone is
-insufficient for admission to review.
+Alleviate the unsustainable review burden described in the
+[problem statement](docs/problem-statement.md), preserving maintainer time and
+motivation for development, credible security findings, and community growth.
+Low-value submissions, unsupported claims, missing reproductions, unsuitable
+patches, abandoned revisions, and noisy exchanges shift investigation and
+completion work onto maintainers.
+
+Patch Steward aims to:
+
+- Establish that a reported problem is real, applicable, and worth addressing
+  before investing in patch review.
+- Check supporting evidence, reproduce failures, and assess fixes against project
+  intent, existing design, and regression checks.
+- Help contributors supply missing evidence, explain their choices, and finish
+  revisions before handing work to maintainers.
+- Keep reports and automated feedback concise, evidence-based, and actionable,
+  with uncertainty and severity judgments left for appropriate maintainer triage.
+- Reduce repeated investigation and queue pressure while preserving access for
+  valid contributions, appeals, and maintainer overrides.
+
+Success means a measured reduction in maintainer workload without systematically
+excluding valid contributions. Screening assesses substance and contributor
+support; AI assistance or ease of generation alone does not establish poor
+quality. Passing checks does not establish project value or authorize merging.
 
 ## Status
+
+This is a **WORK IN PROGRESS**
 
 Project scaffold and design documentation. The screening engine, CLI, LLM and
 GitHub integrations, and isolated runner are not implemented. The sample source and
 test only verify the development toolchain.
 
-The [whitepaper](docs/whitepaper.md) captures the originating conversation's
+The [whitepaper](docs/whitepaper.md) connects these problems to the proposed
 methodology, requirements, architecture, and decisions.
-
-## Methodology and process
-
-1. Load a versioned quality policy from the trusted target branch.
-2. Collect expected behavior, supporting references, actual behavior, a minimal
-   reproduction, and the proposed fix scope.
-3. Use an LLM to classify the claim against documentation, code, tests, and prior
-   decisions. Route unclear requirements to maintainer triage.
-4. Execute the same regression test before and after the fix: it must fail for
-   the claimed reason without the fix and pass with it.
-5. Independently challenge the patch and execute relevant counterexample tests.
-6. Run required regression checks, including integration with the current target
-   branch, and distinguish existing failures from new regressions.
-7. Publish commit-bound evidence and route the submission to needs changes,
-   maintainer triage, or human review.
-
-Contributors can run preflight locally. A trusted maintainer or CI run repeats the
-checks before accepting their results.
-
-## Components
-
-| Component             | Responsibility                                                      |
-| --------------------- | ------------------------------------------------------------------- |
-| Quality policy        | Defines behavior, required checks, platforms, and escalation rules. |
-| Submission schema     | Captures claims, references, reproduction, and scope.               |
-| Screening core        | Coordinates stages and applies deterministic admission rules.       |
-| LLM adapters          | Call provider APIs for analysis and structured findings.            |
-| Context retrieval     | Collects relevant repository files and prior decisions.             |
-| GitHub adapter        | Reads PRs and issues; publishes authorized reports and checks.      |
-| Git adapter           | Fetches commits, inspects diffs, and prepares worktrees.            |
-| Isolated runner       | Executes builds and tests without exposing host credentials.        |
-| Evidence store        | Records commands, results, findings, and base/head commit IDs.      |
-| CLI                   | Provides local contributor and maintainer workflows.                |
-| Triage and monitoring | Supports overrides, accuracy measurement, and resource limits.      |
 
 ## Local execution and integrations
 
-The intended implementation is a local TypeScript/Node.js CLI application.
-It connects directly to LLM and GitHub APIs and invokes existing Git/build/test
-tools. It can screen repositories written in other languages.
+The intended implementation uses a shared TypeScript/Node.js screening core for
+a local CLI and GitHub-hosted workflows. It connects directly to LLM and GitHub
+APIs and invokes existing Git/build/test tools. It can screen repositories written
+in other languages.
 
 A hosted backend is unnecessary for on-demand local screening. Continuous
 screening requires GitHub Actions, a webhook receiver, or a running polling process.
@@ -79,6 +68,7 @@ pnpm coverage
 ```
 
 - src/: sample source and test for toolchain verification.
+- docs/problem-statement.md: review problems, evidence, and scope boundaries.
 - docs/whitepaper.md: authored project design.
 - .github/workflows/: scaffold CI and release automation.
 
