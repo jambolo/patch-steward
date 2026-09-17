@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm build          # tsc -> dist/
+pnpm build          # pnpm -r build -> packages/*/dist/
 pnpm test           # vitest run
 pnpm coverage       # vitest run --coverage (lcov)
 pnpm lint           # eslint .
@@ -17,7 +17,7 @@ pnpm format:check
 Single test file or case:
 
 ```sh
-pnpm vitest run src/index.test.ts
+pnpm vitest run packages/core/src/index.test.ts
 pnpm vitest run -t 'greets by name'
 ```
 
@@ -26,10 +26,14 @@ pnpm only; version pinned via `packageManager` in package.json.
 ## Toolchain constraints
 
 - ESM (`"type": "module"`) + `module: nodenext` + `verbatimModuleSyntax`. Relative imports need the `.js` extension even from `.ts` sources (`import { greet } from './index.js'`).
-- tsconfig `exclude`s `**/*.test.ts`, so `pnpm build` does not typecheck tests. Type errors in tests surface only under Vitest.
+- Shared compiler options live in root `tsconfig.base.json`; each package's `tsconfig.json` extends it (`rootDir: src`, `outDir: dist`) and `exclude`s `**/*.test.ts`, so `pnpm build` does not typecheck tests. Type errors in tests surface only under Vitest.
 - Strict mode plus `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noUnusedLocals`, `noUnusedParameters`.
 - Prettier: single quotes, semicolons, trailing commas, printWidth 132.
-- ESLint flat config ignores `dist/`, `docs/`, `coverage/`.
+- ESLint flat config ignores `**/dist/`, `docs/`, `coverage/`.
+- Node 24 only: CI pins `node-version: 24`; `packages/cli` declares `engines.node >=24`.
+- Test tiers by filename suffix: `*.test.ts` unit, `*.fixture.test.ts` fixture, `*.container.test.ts` container, `*.live.test.ts` live probe. `pnpm test` runs unit + fixture across all packages; container/live suffixes are excluded by the root `vitest.config.ts`; the live tier never runs in CI. The shared fixture corpus lives in root `fixtures/`.
+- `pnpm test` needs no prior build: Vitest aliases `@patch-steward/core` to `packages/core/src`; at Node runtime the bare specifier resolves via core's `exports` map to `dist/`.
+- All packages version in lockstep with root `package.json`, which stays the manifest the CD workflow reads.
 
 ## Branches and CI
 
@@ -39,7 +43,7 @@ pnpm only; version pinned via `packageManager` in package.json.
 
 ## Project state
 
-Scaffold only. `src/index.ts` and its test are a toolchain smoke test — no screening engine, CLI, LLM adapter, GitHub adapter, or sandbox runner exists. Do not describe unimplemented behavior as working.
+Scaffold only. The `packages/*/src` sources and tests are toolchain smoke code — no screening engine, CLI, LLM adapter, GitHub adapter, or sandbox runner exists. Do not describe unimplemented behavior as working.
 
 ## Design source of truth
 

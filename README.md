@@ -69,7 +69,7 @@ has no demonstrated advantage for the established requirements.
 
 ## Development
 
-Install Node.js and pnpm. The exact pnpm version is recorded in package.json.
+Install Node.js 24 and pnpm. The exact pnpm version is recorded in package.json.
 
 ```sh
 pnpm install --frozen-lockfile
@@ -80,7 +80,11 @@ pnpm format:check
 pnpm coverage
 ```
 
-- src/: sample source and test for toolchain verification.
+- packages/: workspace packages core, cli, action, and web; toolchain smoke
+  code only.
+- fixtures/: shared corpus for fixture-tier tests.
+- templates/: files that later milestones will install into target
+  repositories via steward init; nothing is installed today.
 - docs/problem-statement.md: review problems, evidence, and scope boundaries.
 - docs/whitepaper.md: methodology, goals, and a summary of the design.
 - docs/architecture.md: components, trust zones, topologies, GitHub features,
@@ -93,9 +97,10 @@ pnpm coverage
 
 ## Automation
 
-CI builds and tests on Windows and Linux for PRs targeting any branch and for
-pushes to master, develop, and release branches. Lint and formatting checks run for PRs. Coverage uploads
-from develop use the CODECOV_TOKEN repository secret. GitHub Pages deployment
+CI builds and tests on Node 24 on Windows and Linux for PRs targeting any
+branch and for pushes to master, develop, and release branches. Lint and
+formatting checks run for PRs. Coverage uploads from develop use the
+CODECOV_TOKEN repository secret. GitHub Pages deployment
 is omitted because this local project has no Pages configuration.
 
 The scaffold CD workflow builds and tests package changes on master, creates a

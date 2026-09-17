@@ -234,16 +234,24 @@ These files configure development of Patch Steward itself.
 
 ### Package and automation
 
-`package.json` pins `pnpm@10.20.0`, sets `type` to `module`, marks the package
-`private: true`, and declares the [development scripts](commands.md#development-commands-available).
-Its recorded version is `0.0.1`.
+The root `package.json` pins `pnpm@10.20.0`, sets `type` to `module`, marks the
+root `private: true`, and declares the [development scripts](commands.md#development-commands-available).
+Its recorded version is `0.0.2`. `pnpm-workspace.yaml` lists `packages/*` as the
+workspace members: `@patch-steward/core`, `@patch-steward/cli`,
+`@patch-steward/action`, and `@patch-steward/web`, all private and versioned in
+lockstep with the root manifest, which stays the file the CD workflow reads.
+`fixtures/` and `templates/` are plain root directories, not workspace packages.
+The CLI package declares `engines.node >=24` and depends on the core package as
+`workspace:*`; the core package's `exports` map resolves `@patch-steward/core`
+to its compiled `dist/` output at Node runtime.
 
-| File                       | Current settings                                                                                                                                                                      |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.github/workflows/ci.yml` | Node `lts/*`; build/test on Ubuntu and Windows for PRs and pushes to `master`, `develop`, and `release/**`; lint/format for PRs; Codecov upload from `develop` using `CODECOV_TOKEN`. |
-| `.github/workflows/cd.yml` | Runs when `package.json` changes on `master`; builds/tests, creates absent `v<version>` tag, then merges `master` into `develop` only when that new tag was created.                  |
-| `eslint.config.mjs`        | ESLint and TypeScript ESLint recommended configurations; ignores `dist/`, `docs/`, and `coverage/`.                                                                                   |
-| `.prettierignore`          | Excludes `pnpm-lock.yaml`, `dist/`, `coverage/`, and `node_modules/`.                                                                                                                 |
+| File                       | Current settings                                                                                                                                                                                                |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.github/workflows/ci.yml` | Node 24; build/test on Ubuntu and Windows for PRs and pushes to `master`, `develop`, and `release/**`; lint/format for PRs; Codecov upload from `develop` using `CODECOV_TOKEN`.                                |
+| `.github/workflows/cd.yml` | Runs when the root `package.json` changes on `master`; builds/tests, creates absent `v<version>` tag, then merges `master` into `develop` only when that new tag was created.                                   |
+| `vitest.config.ts`         | Test tiers by filename suffix: unit (`*.test.ts`) and fixture (`*.fixture.test.ts`) projects run under `pnpm test`; container and live suffixes are excluded. Coverage merges to the root `coverage/lcov.info`. |
+| `eslint.config.mjs`        | ESLint and TypeScript ESLint recommended configurations; ignores `**/dist/`, `docs/`, and `coverage/`.                                                                                                          |
+| `.prettierignore`          | Excludes `pnpm-lock.yaml`, `dist/`, `coverage/`, and `node_modules/`.                                                                                                                                           |
 
 The CD workflow requires both remote branches and permissions/rules allowing its
 tag and merge operations. Scaffold automation does not implement screening or
@@ -251,16 +259,15 @@ configure Pages.
 
 ### TypeScript
 
-The complete supplied `tsconfig.json`:
+Shared compiler options live in the root `tsconfig.base.json`:
 
 ```json
 {
   "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist",
     "module": "nodenext",
     "target": "esnext",
     "types": ["node"],
+    "declaration": true,
     "sourceMap": true,
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
@@ -273,6 +280,18 @@ The complete supplied `tsconfig.json`:
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true
+  }
+}
+```
+
+Each package's `tsconfig.json` adds only the package-local layout:
+
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
   },
   "include": ["src"],
   "exclude": ["**/*.test.ts"]
@@ -280,7 +299,9 @@ The complete supplied `tsconfig.json`:
 ```
 
 Relative TypeScript imports use `.js` extensions under this ESM configuration.
-Tests are excluded from the build, so build success alone does not verify them.
+Tests are excluded from every package build, so build success alone does not
+verify them; Vitest resolves `@patch-steward/core` to `packages/core/src`, so
+`pnpm test` needs no prior build.
 
 ### Formatting example
 
@@ -298,7 +319,8 @@ The complete supplied `.prettierrc.json`:
 
 These are explicit repository settings, not Patch Steward screening-policy defaults.
 
-Sources: [package manifest](../../package.json), [CI](../../.github/workflows/ci.yml),
-[CD](../../.github/workflows/cd.yml), [ESLint](../../eslint.config.mjs),
-[Prettier exclusions](../../.prettierignore), [TypeScript](../../tsconfig.json),
+Sources: [package manifest](../../package.json), [workspace file](../../pnpm-workspace.yaml),
+[CI](../../.github/workflows/ci.yml), [CD](../../.github/workflows/cd.yml),
+[Vitest](../../vitest.config.ts), [ESLint](../../eslint.config.mjs),
+[Prettier exclusions](../../.prettierignore), [TypeScript base](../../tsconfig.base.json),
 [Prettier](../../.prettierrc.json), [repository guidance](../../CLAUDE.md#toolchain-constraints).

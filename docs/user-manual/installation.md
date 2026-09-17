@@ -7,16 +7,16 @@
 For the existing development scaffold:
 
 - A local checkout of this repository.
-- Node.js. The CI workflows select `lts/*`.
+- Node.js 24. The CI workflows pin Node 24; the CLI package declares `engines.node >=24`.
 - pnpm **10.20.0**, as pinned in `package.json`.
 
-The scaffold's CI runs builds and tests on Windows and Linux. Its package is
-marked private and contains no CLI executable declaration.
+The scaffold's CI runs builds and tests on Windows and Linux. Its packages are
+marked private and contain no CLI executable declaration.
 
-> **[NEEDS INPUT]** The sources do not specify a minimum supported Node.js version,
-> Node.js/pnpm installation commands, or a canonical clone URL. They also do not
-> supply a published screening CLI package name, installation command, or release
-> compatibility matrix.
+> **[NEEDS INPUT]** The sources do not specify Node.js/pnpm installation
+> commands or a canonical clone URL. They also do not supply a published
+> screening CLI package name, installation command, or release compatibility
+> matrix.
 
 Sources: [README development section](../../README.md#development),
 [package manifest](../../package.json), [CI workflow](../../.github/workflows/ci.yml).
@@ -31,7 +31,7 @@ Run these commands from the repository root:
    pnpm install --frozen-lockfile
    ```
 
-2. Compile the sample TypeScript source into `dist/`.
+2. Compile the workspace packages into their `dist/` directories.
 
    ```sh
    pnpm build
@@ -46,7 +46,7 @@ Run these commands from the repository root:
 These steps set up the toolchain. They do not install an issue or PR screening
 service.
 
-Sources: [README](../../README.md#development), [TypeScript configuration](../../tsconfig.json).
+Sources: [README](../../README.md#development), [TypeScript configuration](../../tsconfig.base.json).
 
 ## Verify the installation
 
@@ -56,7 +56,7 @@ The sample test checks that calling `greet('world')` returns `Hello, world!`:
 expect(greet('world')).toBe('Hello, world!');
 ```
 
-This assertion is from `src/index.test.ts`. A successful build and passing test
+This assertion is from `packages/core/src/index.test.ts`. A successful build and passing test
 verify the scaffold's compilation and test execution. Then run the documented
 quality checks:
 
@@ -70,7 +70,7 @@ Coverage uses the LCOV reporter. The CI workflow reads `coverage/lcov.info` for
 its Codecov upload. `CODECOV_TOKEN` is needed for that upload from `develop`, not
 for the local coverage command.
 
-Sources: [sample test](../../src/index.test.ts), [package scripts](../../package.json),
+Sources: [sample test](../../packages/core/src/index.test.ts), [package scripts](../../package.json),
 [CI workflow](../../.github/workflows/ci.yml).
 
 ## Target-repository installation (Proposed)

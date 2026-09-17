@@ -199,12 +199,22 @@ patch-steward/
 │   ├── action/            GitHub JavaScript action that runs the core inside workflow jobs
 │   └── web/               static browser app: contributor assistant and maintainer dashboard
 ├── templates/             files installed into a target repository by `steward init`
+├── fixtures/              shared fixture-tier test corpus; not a workspace package
 └── docs/
 ```
 
 Packages share one TypeScript configuration and toolchain (pnpm, strict
-TypeScript, ESLint, Prettier, Vitest). Adapters start inside `core`; they can
-move to separate packages when a second implementation of an interface exists.
+TypeScript, ESLint, Prettier, Vitest) on Node 24 only: CI pins Node 24, the
+CLI declares `engines.node >=24`, and the action targets the `node24` runtime.
+All packages version in lockstep with the root `package.json`, which stays the
+manifest the CD workflow reads for release tagging. Tests are tiered by
+filename suffix: `*.test.ts` (unit), `*.fixture.test.ts` (fixture),
+`*.container.test.ts` (container), `*.live.test.ts` (live probe). CI runs the
+unit and fixture tiers on Ubuntu and Windows and the container tier on Ubuntu
+only; the live-probe tier never runs in CI, and CI makes no live GitHub or
+model calls. The root `fixtures/` directory is the shared fixture corpus home.
+Adapters start inside `core`; they can move to separate packages when a second
+implementation of an interface exists.
 
 ### 6.2 Screening core (`packages/core`)
 

@@ -6,17 +6,17 @@
 
 Run from this repository's root with pnpm 10.20.0.
 
-| Command                               | Purpose                                         |
-| ------------------------------------- | ----------------------------------------------- |
-| `pnpm install --frozen-lockfile`      | Install dependencies using the lockfile.        |
-| `pnpm build`                          | Run `tsc`; output goes to `dist/`.              |
-| `pnpm test`                           | Run the Vitest suite once.                      |
-| `pnpm coverage`                       | Run Vitest with coverage and the LCOV reporter. |
-| `pnpm lint`                           | Run ESLint.                                     |
-| `pnpm format`                         | Apply Prettier formatting.                      |
-| `pnpm format:check`                   | Check Prettier formatting.                      |
-| `pnpm vitest run src/index.test.ts`   | Run the sample test file.                       |
-| `pnpm vitest run -t 'greets by name'` | Run the named sample test.                      |
+| Command                                           | Purpose                                                       |
+| ------------------------------------------------- | ------------------------------------------------------------- |
+| `pnpm install --frozen-lockfile`                  | Install dependencies using the lockfile.                      |
+| `pnpm build`                                      | Run `tsc` in each package; output goes to `packages/*/dist/`. |
+| `pnpm test`                                       | Run the Vitest suite once.                                    |
+| `pnpm coverage`                                   | Run Vitest with coverage and the LCOV reporter.               |
+| `pnpm lint`                                       | Run ESLint.                                                   |
+| `pnpm format`                                     | Apply Prettier formatting.                                    |
+| `pnpm format:check`                               | Check Prettier formatting.                                    |
+| `pnpm vitest run packages/core/src/index.test.ts` | Run the sample test file.                                     |
+| `pnpm vitest run -t 'greets by name'`             | Run the named sample test.                                    |
 
 Documented verification sequence:
 

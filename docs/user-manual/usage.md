@@ -16,7 +16,7 @@ pnpm format:check
 For a focused toolchain check, run the supplied test file or named test:
 
 ```sh
-pnpm vitest run src/index.test.ts
+pnpm vitest run packages/core/src/index.test.ts
 pnpm vitest run -t 'greets by name'
 ```
 

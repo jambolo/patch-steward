@@ -58,10 +58,10 @@ This manual uses only repository material:
 - [Whitepaper](../whitepaper.md): methodology and evaluation goals.
 - [Architecture](../architecture.md): components, boundaries, configuration areas, and open decisions.
 - [Processes](../processes.md): workflows, decisions, commands, and failure handling.
-- [Package manifest](../../package.json), [sample source](../../src/index.ts),
-  [sample test](../../src/index.test.ts), and [repository guidance](../../CLAUDE.md): development behavior.
+- [Package manifest](../../package.json), [sample source](../../packages/core/src/index.ts),
+  [sample test](../../packages/core/src/index.test.ts), and [repository guidance](../../CLAUDE.md): development behavior.
 - [CI](../../.github/workflows/ci.yml), [CD](../../.github/workflows/cd.yml),
-  [TypeScript configuration](../../tsconfig.json), [ESLint configuration](../../eslint.config.mjs),
+  [TypeScript configuration](../../tsconfig.base.json), [ESLint configuration](../../eslint.config.mjs),
   and [Prettier configuration](../../.prettierrc.json): existing toolchain settings.
 
 Where design documents differ, the architecture governs components and

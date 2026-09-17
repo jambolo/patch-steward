@@ -753,10 +753,10 @@ effectiveness.
 
 The repository starts with pnpm, strict TypeScript, ESLint, Prettier, Vitest,
 coverage support, an MIT license, and GitHub CI/CD templates. Authored
-documentation is tracked in docs. The monorepo layout in §9 is planned; the
-current scaffold is a single package.
+documentation is tracked in docs. The monorepo layout in §9 is implemented
+(M01); the packages contain only toolchain smoke code.
 
-The sample source is only a toolchain smoke test. No working screening command,
+The sample sources are only toolchain smoke code. No working screening command,
 provider integration, workflow, or browser app is claimed.
 
 Decisions recorded on September 15, 2026 and revised on September 16, 2026
