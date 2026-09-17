@@ -1,0 +1,117 @@
+# Troubleshooting
+
+[Manual contents](README.md) · [Installation](installation.md) · [Configuration](configuration.md)
+
+Only the scaffold is implemented. Product troubleshooting below describes failure
+paths in the design, not observed errors from a released product.
+
+> **[NEEDS INPUT]** No Patch Steward issue export, support log, runtime error
+> catalog, or exact diagnostic messages were supplied. Release-specific error
+> strings and confirmed fixes need those sources. External projects' reports
+> cited by the whitepaper are evaluation material, not Patch Steward support cases.
+
+## Scaffold and availability
+
+| Symptom                                                   | Cause supported by the sources                                                                                          | Action                                                                                                                           |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| No `steward` executable or screening after setup          | The repository is a scaffold; CLI, core, and integrations are not implemented.                                          | Use the documented development commands for toolchain verification. Product installation remains blocked on implementation.      |
+| Build passes without verifying tests                      | `tsconfig.json` excludes `**/*.test.ts`.                                                                                | Run `pnpm test` separately.                                                                                                      |
+| A relative TypeScript import lacks its required extension | The scaffold uses ESM, `nodenext`, and `verbatimModuleSyntax`.                                                          | Use a `.js` suffix as in `import { greet } from './index.js'`.                                                                   |
+| Formatting check fails                                    | Prettier checks Markdown as well as source; its ignore list excludes only the documented paths.                         | Run `pnpm format`, inspect the changes, and rerun `pnpm format:check`.                                                           |
+| No Codecov upload                                         | The upload job runs only from `develop` and uses `CODECOV_TOKEN`.                                                       | Check the branch and repository secret; use `pnpm coverage` for a local report.                                                  |
+| No release tag or merge into `develop`                    | CD triggers only for `package.json` changes on `master`; an existing version tag skips both tag creation and the merge. | Check the triggering change and package version. Both remote branches must exist and repository rules must allow the operations. |
+
+Sources: [README status](../../README.md#status), [package scripts](../../package.json),
+[repository constraints](../../CLAUDE.md#toolchain-constraints),
+[CI](../../.github/workflows/ci.yml), [CD](../../.github/workflows/cd.yml).
+
+## Submission corrections (Proposed)
+
+Begin with the report's numbered requests and "what would change the outcome."
+Missing contributor evidence is `needs-changes`; failure of steward-side work is
+`inconclusive`.
+
+| Symptom                                                    | Documented cause                                                                                  | Correction or next decision                                                                                                           |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Template rejected                                          | Unrecognized structure where free-form submissions are disallowed, or ambiguous/duplicate fields. | Use the installed form/template and correct the reported fields.                                                                      |
+| Attachment exceeds limits                                  | Attachment size/format violates the contract.                                                     | Supply compliant files.                                                                                                               |
+| Missing reference, reproduction, or test declaration       | The category requires it.                                                                         | Edit the specified body field or commit the required test; a conversation comment alone does not satisfy these requests.              |
+| `proposal-required`                                        | Feature/design PR lacks accepted intent under `propose-first`.                                    | Link an accepted proposal, obtain `/steward accept` on the PR, or obtain a scoped waiver.                                             |
+| Passing proposal still waits for acceptance                | `proposal-pending` passes the submission contract, not the intent decision.                       | A maintainer must accept or decline it; nothing is requested from the author.                                                         |
+| Base test fails but before-and-after verification is unmet | Failure is compilation/missing-symbol failure rather than the claimed behavior.                   | Supply behavioral before-evidence; a separate reproduction may be accepted if policy permits it.                                      |
+| Reproduction does not demonstrate the claim                | It fails to reproduce in the claimed supported environment.                                       | Correct the reproduction, command, environment information, or claimed behavior. Unrelated setup failures remain inconclusive.        |
+| `fabricated-reference`                                     | An authoritative reference is definitively absent at the claimed revision.                        | Correct the reference or provide a verifiable basis. Network failures are unverified references, not fabrication.                     |
+| Tests pass but result is `uncertain`                       | Category/intent ambiguity or execution-sensitive path changes need a maintainer decision.         | Review the uncertainty and relevant changes with a maintainer; passing tests alone cannot resolve it.                                 |
+| Proposal acceptance disappeared after editing              | Issue content hash or PR claim scope/target changed.                                              | Obtain renewed acceptance. Implementation-only pushes with unchanged PR scope retain intent acceptance but rerun technical screening. |
+
+Sources: [SP06](../processes.md#sp06-intake-and-submission-contract-check),
+[SP07](../processes.md#sp07-reference-verification), [SP08](../processes.md#sp08-claim-validation),
+[SP09](../processes.md#sp09-reproduction), [SP10](../processes.md#sp10-fix-verification),
+[SP14](../processes.md#sp14-contributor-follow-through).
+
+## Waiting states and checks (Proposed)
+
+| Symptom                                                | Documented cause                                                                | Action                                                                                                                                                         |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `queued`, pending check                                | Approximate daily or per-author concurrency cap reached.                        | The maintenance workflow restarts queued work in arrival order within caps, refreshing inputs.                                                                 |
+| `awaiting-approval`, pending check                     | `llm.admission: maintainer-approved` holds an author without prior merged work. | A maintainer posts `/steward rerun` to admit this submission. An author rerun or manual label cannot admit it.                                                 |
+| Shared-head blocker despite an override or advise mode | Multiple open PRs share one head commit.                                        | Push a distinct commit or close the other PRs. Required/enforced checks use `action_required`; an optional advise-only check fails. This cannot be overridden. |
+| Run is `superseded`                                    | Snapshot changed or a newer committed owner exists.                             | Consult the replacement. The old run retains evidence and may cancel only its own pending check.                                                               |
+| New run cannot create its required check               | `gate` cannot create a fresh App check.                                         | Inspect App credentials and check permissions. The run stops before ownership commitment and reports that the previous certification still stands.             |
+| Check stays pending after job failure                  | `gate`/`publish` failed, or cancellation prevented publication.                 | Inspect those jobs and restore the missing service/credential/store. Maintenance marks stale checks `action_required`; a fresh run creates a new check.        |
+| Neutral check despite a non-pass report                | Category is advised or outside enforcement.                                     | Read the mode and summary. Neutral does not mean pass; waiting/shared-head exceptions still block.                                                             |
+| Merge-queue entry has no required check                | Missing or failed relay did not start group verification.                       | Inspect the relay and default-branch screening workflow. The queue entry waits until timeout; no success is inferred.                                          |
+| Earlier success no longer counts on the same commit    | A fresh App check for a newer run superseded it.                                | Follow the latest run and its snapshot.                                                                                                                        |
+
+> **[NEEDS INPUT]** Daily caps, concurrency limits, stale-check timeout, schedule
+> intervals, and exact maintenance recovery inputs are not specified.
+
+Sources: [architecture §10](../architecture.md#10-submission-states-and-their-github-representation),
+[SP12](../processes.md#sp12-regression-analysis),
+[SP13](../processes.md#sp13-decision-report-and-admission),
+[SP19](../processes.md#sp19-resource-control-and-failure-handling).
+
+## Infrastructure and inference (Proposed)
+
+| Symptom                                             | Documented cause                                                                                      | Action                                                                                                                                                           |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Every run is `inconclusive` after a policy change   | Trusted policy fails validation.                                                                      | Correct it through maintainer review; unknown keys and out-of-bounds limits are rejected. No fallback policy is substituted.                                     |
+| Inference fails before execution                    | Missing/unknown provider, unusable credential, disabled Copilot policy, or capability mismatch.       | Check the selected adapter/model/auth pairing and Environment or job permissions; rerun the installation capability probe after correcting setup.                |
+| Copilot inference cannot run in Actions             | Model jobs lack `copilot-requests: write`, or required organization policy is disabled.               | Restore the documented wrapper permission or organization configuration.                                                                                         |
+| Model unavailable or retired                        | The configured model cannot serve the required work.                                                  | Maintainers must select a usable supported model in trusted policy; no automatic substitution occurs.                                                            |
+| Refusal or malformed structured output              | Required model output could not be obtained or validated within repair limits.                        | Review the recorded cause; maintainers may rerun or make a scoped decision. It cannot be treated as pass.                                                        |
+| Rate-limit or budget failure                        | Bounded retries or cumulative allowance exhausted.                                                    | Inspect usage and provider controls. One automatic rerun is allowed for transient causes within the daily cap; permanent/exhausted failures remain inconclusive. |
+| Inference spends more than expected in observe mode | Observe runs the full pipeline; Copilot credit caps are soft.                                         | Review provider spending limits, cumulative usage, daily caps, and the optional admission rule. Mode alone is not a spending control.                            |
+| Environment failure or missing platform coverage    | Runner/image unavailable, baseline cannot be produced, or required platform lacks admissible results. | Restore the declared environment and matching baseline/coverage. Linux results cannot stand in for a missing Windows baseline.                                   |
+| Reproduction needs a network or external service    | Execution network is disabled unless policy allows the necessary setup/services.                      | Reduce it to a self-contained reproduction; allowed-service configuration remains an open decision.                                                              |
+| Evidence cannot be written                          | Store is missing, unwritable, or bounded write retries fail.                                          | Restore store access and App installation/permissions. Admission cannot publish success without durable evidence.                                                |
+
+No job should combine App and inference credentials to work around a permission
+failure. Submitted code must remain in credential-free containers; running it on
+the host is not a documented recovery path.
+
+Sources: [SP02](../processes.md#sp02-adoption-and-installation),
+[SP09](../processes.md#sp09-reproduction), [SP12](../processes.md#sp12-regression-analysis),
+[SP17](../processes.md#sp17-sandboxed-execution),
+[SP18](../processes.md#sp18-evidence-retention-and-publication),
+[SP19](../processes.md#sp19-resource-control-and-failure-handling).
+
+## Reports, commands, and dashboard (Proposed)
+
+| Symptom                                                      | Documented cause                                                                                                          | Action                                                                                                                  |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| No report, label, or draft promotion                         | Category is in `observe`.                                                                                                 | Read evidence and Actions summaries. Follow the ordinary manual readiness/review process.                               |
+| Command has no effect                                        | Unauthorized user, review comment, or edit of an existing command comment.                                                | Post a permitted command at the start of a new issue/PR conversation comment.                                           |
+| Manual label does not accept a proposal or override a result | Labels are outputs, not authenticated actions.                                                                            | Use the applicable maintainer command.                                                                                  |
+| Explanation did not trigger a rerun                          | Response did not cite/address the numbered explanation request, or supplied a field/test that belongs in the body/commit. | Follow the request's destination; the steward's single follow-up identifies corrections.                                |
+| Local pass does not satisfy the required check               | Preflight is a claim; maintainer local output is attributed, not authoritative admission.                                 | Use official Actions screening. A maintainer may cite local evidence in a scoped override.                              |
+| Report exists but dashboard is missing                       | Pages is unavailable or public export is disabled.                                                                        | Use the durable evidence link and Actions summary. Pages failure degrades the dashboard, not evidence-backed screening. |
+| Private evidence absent from the browser                     | Version 1 browser cannot directly read private stores; public export needs approval.                                      | Use private evidence/Actions summaries or the explicitly authorized public subset.                                      |
+| Cost is missing                                              | Provider did not report usable usage/cost information.                                                                    | Treat it as unknown, not zero; the report body does not contain per-run cost.                                           |
+
+Sources: [SP03](../processes.md#sp03-calibration-and-enforcement-rollout),
+[SP14](../processes.md#sp14-contributor-follow-through),
+[SP15](../processes.md#sp15-maintainer-triage-override-and-appeal),
+[SP18](../processes.md#sp18-evidence-retention-and-publication),
+[SP20](../processes.md#sp20-maintainer-initiated-local-screening),
+[architecture §6.6](../architecture.md#66-browser-application-packagesweb).
