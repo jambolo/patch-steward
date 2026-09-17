@@ -1,8 +1,9 @@
 # Patch Steward
 
-Patch Steward is a set of local and GitHub-hosted tools to help
-contributors and maintainers validate, verify, improve, and screen issues,
-security reports, and pull requests before substantive maintainer review.
+Patch Steward proposes local and GitHub-hosted tools to help contributors and
+maintainers validate, verify, improve, and screen GitHub issues and pull
+requests before substantive maintainer review. Private vulnerability report
+intake is deferred.
 
 ## Goal
 
@@ -35,24 +36,35 @@ quality. Passing checks does not establish project value or authorize merging.
 
 This is a **WORK IN PROGRESS**
 
-Project scaffold and design documentation. The screening engine, CLI, LLM and
-GitHub integrations, and isolated runner are not implemented. The sample source and
-test only verify the development toolchain.
+Project scaffold and design documentation. The screening core, CLI, GitHub
+action and workflows, browser app, LLM and GitHub adapters, and sandboxed runner
+are not implemented. The sample source and test only verify the development
+toolchain.
 
 The [whitepaper](docs/whitepaper.md) connects these problems to the proposed
-methodology, requirements, architecture, and decisions.
+methodology, requirements, architecture, and decisions. The
+[architecture](docs/architecture.md) records the selected components, trust
+boundaries, and GitHub features; the [processes](docs/processes.md) define
+each screening, feedback, and calibration process (SP01–SP20). Version 1
+screens GitHub issues and pull requests in public or private repositories; private vulnerability reports and
+active moderation of review exchanges are deferred.
 
 ## Local execution and integrations
 
-The intended implementation uses a shared TypeScript/Node.js screening core for
-a local CLI and GitHub-hosted workflows. It connects directly to LLM and GitHub
-APIs and invokes existing Git/build/test tools. It can screen repositories written
-in other languages.
+The intended implementation is one TypeScript/Node.js screening core in a pnpm
+monorepo, shared by a local CLI, a GitHub action with reusable workflows, and a
+static browser app for contributors and maintainers on GitHub Pages. It uses
+a provider-independent LLM adapter for inference (a Copilot SDK adapter
+authenticated with the workflow's GitHub token, or an OpenAI-compatible
+provider with a project-supplied key, selected in the project's policy), a
+GitHub App identity for bot writes, GitHub Actions events as triggers, and
+containers started by trusted jobs as the sandbox. It invokes existing Git, build, and test tools and can screen
+repositories written in other languages.
 
-A hosted backend is unnecessary for on-demand local screening. Continuous
-screening requires GitHub Actions, a webhook receiver, or a running polling process.
-TypeScript was selected by preference and fit; Python has no demonstrated advantage
-for the established requirements.
+No hosted backend exists. Continuous screening runs in GitHub Actions in the
+target repository; the local CLI screens on demand with the user's own GitHub
+token and inference credential and cannot receive events. TypeScript was selected by preference and fit; Python
+has no demonstrated advantage for the established requirements.
 
 ## Development
 
@@ -69,30 +81,49 @@ pnpm coverage
 
 - src/: sample source and test for toolchain verification.
 - docs/problem-statement.md: review problems, evidence, and scope boundaries.
-- docs/whitepaper.md: authored project design.
+- docs/whitepaper.md: methodology, goals, and a summary of the design.
+- docs/architecture.md: components, trust zones, topologies, GitHub features,
+  policy, data model, states, security, and open implementation decisions.
+- docs/processes.md: the processes SP01–SP20 with triggers, steps, controls,
+  failure handling, and measures.
 - .github/workflows/: scaffold CI and release automation.
 
 ## Automation
 
-CI builds and tests on Windows and Linux for PRs and pushes to master, develop,
-and release branches. Lint and formatting checks run for PRs. Coverage uploads
+CI builds and tests on Windows and Linux for PRs targeting any branch and for
+pushes to master, develop, and release branches. Lint and formatting checks run for PRs. Coverage uploads
 from develop use the CODECOV_TOKEN repository secret. GitHub Pages deployment
 is omitted because this local project has no Pages configuration.
 
 The scaffold CD workflow builds and tests package changes on master, creates a
-version tag if absent, and merges master into develop. Both branches must exist
+version tag if absent, and merges master into develop only when that new tag
+is created. Both branches must exist
 on the remote and repository permissions/rules must allow these operations.
 No GitHub remote or API credentials are configured by this scaffold.
 
 These workflows validate this project's scaffold; they do not implement the
-proposed PR screening service.
+proposed issue and PR screening service.
 
 ## Trust boundaries
 
-Submitted code must run in a disposable sandbox, not directly on a maintainer's
-host. Worktrees and subprocesses alone are not security isolation. Keep LLM and
-GitHub credentials in the trusted orchestration process. Treat PR content and
-logs as untrusted input; a submission cannot modify its own active quality policy.
+Submitted code and contributor-supplied reproductions run only inside
+disposable containers that a trusted job starts without credentials, never
+directly on a maintainer's host. Worktrees and subprocesses alone are not
+security isolation. Results from project CI retain their signal provenance.
+Container isolation protects hosts and credentials; it does not make test
+results trustworthy. Submitted code can manipulate reporters, result files, and
+exit status in either topology. Execution-sensitive changes require triage;
+baseline comparisons and independent challenges add evidence without
+guaranteeing integrity. Keep LLM and GitHub credentials in trusted orchestration;
+each event is one default-branch workflow run, only its gate and publish jobs
+hold scoped App tokens, and only its intake and assess jobs hold the model
+credential and never execute submitted code. Challenge plans run in separate
+execution jobs on fresh runners, followed by model-only assessment jobs.
+Treat PR content, comments, logs, and model
+output as untrusted data; a submission cannot modify its own active quality
+policy.
+Service failure, model refusal, malformed output, or missing evidence never
+produce a pass.
 
 ## License
 

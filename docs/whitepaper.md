@@ -1,4 +1,4 @@
-# Patch Steward: Pull Request Screening and Improvement for Maintainers
+# Patch Steward: Issue and Pull Request Screening for Maintainers
 
 ## Abstract
 
@@ -55,6 +55,13 @@ are design and evaluation concerns (O01-O03). The response must preserve paths
 for legitimate contributors, provide clear evidence requirements and dismissal
 reasons, and measure its own workload and errors.
 
+The architecture and processes selected on September 15, 2026 are recorded in
+[architecture.md](architecture.md) and [processes.md](processes.md). Sections
+9–14 summarize the design; §§2–8 explain its methodology. Process identifiers
+(SP01–SP20) and architecture references point to the detailed design. Version 1 screens GitHub issues and pull
+requests in public or private repositories; private vulnerability reports and active moderation of review
+exchanges are deferred (architecture §1.1).
+
 ## 2. Goals and limits
 
 ### Goals
@@ -103,214 +110,628 @@ or an ambiguous specification.
 
 ## 3. Quality contract
 
-A versioned policy maintained on the trusted target branch defines:
+A versioned policy maintained on the trusted target branch, at
+`.github/patch-steward/policy.yml` and owned by maintainers through
+CODEOWNERS, defines:
 
-- Supported behavior, environments, platforms, and compatibility guarantees.
-- Required build, test, lint, and static-analysis commands.
-- Evidence required for each category of change.
+- Supported behavior, environments, platforms, compatibility guarantees, the
+  project's own components, and the documents and decision records that
+  stages may cite.
+- Change categories and the evidence required for each.
+- Submission requirements: fields, length caps, references, and whether a PR
+  must link a validated issue.
+- Required build, test, lint, and static-analysis commands and the platform
+  matrix.
 - Mandatory checks that impact analysis cannot omit.
+- Trusted control paths and execution-sensitive paths (package scripts,
+  build/test configuration, reporters, shared helpers, and harness code) whose
+  changes restrict CI reliance or require maintainer triage.
+- Runner image (optionally defined under `.github/patch-steward/runner/`),
+  network setting, and resource limits for sandboxed execution.
 - Escalation rules for unclear requirements and sensitive changes.
 - Runtime, token, retry, and other resource limits.
+- Inference: the shipped adapter, model, authentication method, and admission
+  rule, as credential references only; no default provider is substituted.
+- Operating mode per category: observe, advise, or enforce, with neutral gate
+  checks for unenforced categories when a repository-wide check is required.
+- Follow-through timers, passive hygiene heuristics, evidence retention and
+  publication settings, and the dismissal-code catalog.
 
 A PR may propose policy changes, but cannot make those changes govern its own
-screening run. Each report records the policy revision used.
+screening run. Each report records the policy revision used: the content hash
+of the policy directory, with the trusted-branch commit at load recorded
+alongside it; unrelated default-branch commits do not change the revision. An
+invalid policy on the trusted
+branch makes every run inconclusive; the steward never falls back to defaults
+(SP01).
 
 ## 4. Submission contract and bug validation
 
 The contributor supplies expected behavior and an authoritative basis, actual
 behavior, affected version, a minimal reproduction with an execution command,
 and the proposed scope of the fix. References may include documentation,
-specifications, or an accepted maintainer decision.
+specifications, or an accepted maintainer decision. Issue forms with stable,
+unique rendered labels and a PR template with headed sections carry these fields; a
+browser assistant and a local preflight command help contributors complete them
+before submitting (SP05, SP06). A submission that does not follow the template
+is returned with a request to use it unless the policy allows free-form
+submissions.
+
+Parsing uses versioned label/heading mappings; GitHub's form ids are used for
+prefilled URLs and are not present in submitted issue bodies. Linked issues
+skip claim validation only when a successful final validation, all required
+reproductions, policy, content/evidence hashes, target applicability, and claim
+scope still match. A classification alone is insufficient (SP06).
+
+Model use is organized as isolated sessions, each with a bounded context and a
+response schema: session A validates claims (this section), session B
+challenges patches (§6), and session C assesses author replies (§8). They never
+share conversation history. These names describe isolation roles, not a
+three-call limit: SP07 extraction, SP09 output interpretation, SP10 design,
+SP12 impact analysis, SP16 hygiene, repairs, and preflight can add calls.
+Every call is stage-tagged and debits the same run/stage budget; no auxiliary
+session introduces author prose or A/C history into B.
+
+Cited files, symbols, quotations, issues, URLs, document sections, and versions
+are verified at the claimed revision before any claim is assessed. Each
+reference is recorded as verified, unverified, or fabricated; a fabricated
+authoritative basis is a blocking finding (SP07).
 
 The LLM examines relevant source, tests, documentation, prior issues, and
-decisions. It returns one of: supported defect, intended behavior, feature
-request, duplicate, or uncertain. Each classification must include evidence.
+decisions. For defect claims it returns one of: supported defect, intended
+behavior, feature request, duplicate, or uncertain. For proposal issues it returns
+accepted proposal, proposal pending, duplicate, or uncertain; feature/design
+PRs are accepted proposals or unrequested changes. Each classification must
+include evidence pointers that the core confirms exist; a classification
+without them degrades to uncertain. A claim that repeats a previously dismissed
+claim without new evidence is a duplicate citing the prior dismissal (SP08).
+Well-formed proposal issues enter the proposal backlog, awaiting an intent
+decision; feature requests missing proposal fields return to the author.
+Only unresolved screening questions enter triage. Accepted proposal issues
+do not need a defect reproduction. SP08 defines routing and
+SP13 defines the single final-outcome table.
 
 A failing regression test is not enough: the asserted expectation may be wrong.
 For example, a test that expects an intentionally unsupported input to succeed
 does not establish a defect. Ambiguous intent enters a small maintainer triage
-queue before substantial implementation review.
+queue before substantial implementation review. Proposal issues are the
+channel for requesting a decision: a well-formed one is `proposal-pending` and
+waits in the proposal backlog, without author requests or timers, until a
+maintainer accepts or declines it through a recorded command (labels are
+outputs of that record, never inputs). A PR that implements a feature without an
+accepted proposal is returned to its author with the code `proposal-required`
+by default (`unrequested_change: propose-first`), satisfied when a linked
+proposal is accepted or a maintainer accepts the claim on the PR; a project
+may instead set `triage` to decide such PRs in the triage queue (SP08).
 
 Missing evidence produces a specific request for changes. The system does not
-invent requirements to complete the submission.
+invent requirements to complete the submission. Security-claimed issues follow
+the policy's escalation rule and never receive a severity statement from the
+steward.
 
 ## 5. Reproduce the defect and verify the fix
 
-The runner executes an identical regression test against controlled versions:
+Every execution that produces evidence runs inside a disposable container that
+a trusted job starts with no credentials, no host environment, and network
+disabled except for a policy-declared dependency step (SP17). Reproduction runs
+on the claimed version and its policy-mapped supported target/maintenance branch;
+the default branch may also be compared (SP09).
+When the contributor declares observable markers such as exit status or output
+text, matching is rule-based; otherwise a model assessment states whether the
+output shows the claimed behavior and marks ambiguity as uncertain. A
+reproduction on a supported release remains applicable even when the default
+branch is fixed; record affected releases and backport needs. Only a claim
+limited to unsupported versions with no affected supported target receives
+`not-applicable-version`. Unknown support mapping requires triage. Failure to
+reproduce in the claimed supported environment requests correction.
 
-| Version                                                        | Required evidence                        |
-| -------------------------------------------------------------- | ---------------------------------------- |
-| Target branch plus regression test, without the production fix | Fails for the claimed behavioral reason. |
-| Proposed change plus the identical regression test             | Passes.                                  |
-| Proposed change integrated with the current target branch      | Passes.                                  |
+For a bug fix, the PR declares the regression test that demonstrates the
+defect, and the runner executes it against controlled revisions (SP10):
 
-Clean environments and recorded dependencies make results reproducible. A build
-failure unrelated to the claim is not the required negative result. The screener
-checks that the patch does not pass by disabling assertions, swallowing errors,
-or weakening existing tests.
+| Revision                                                          | Required evidence                        |
+| ----------------------------------------------------------------- | ---------------------------------------- |
+| Base commit plus only the PR's test-path changes, without the fix | Fails for the claimed behavioral reason. |
+| Head commit with the identical regression test                    | Passes.                                  |
+| Merge commit at screening time                                    | Passes.                                  |
 
-Results include the command, environment identity, exit status, relevant output,
-test identity, and commit IDs. Infrastructure errors are inconclusive and must
-not silently become either a quality rejection or a pass.
+Before merge, the merge-queue group separately runs the mandatory suite and
+baseline comparison (SP12); it does not repeat each member's before-and-after
+claim verification.
+
+The failure on the base commit must be an assertion or behavior failure. A
+compile or missing-symbol failure does not satisfy the requirement; when the
+fix introduces an interface the test needs, the policy may accept a
+contributor-supplied reproduction script as the before evidence. A build
+failure unrelated to the claim is an environment result, not the required
+negative result.
+
+Anti-gaming analysis is deterministic over test paths and configuration:
+removed, skipped, or exclusively focused tests; reduced assertion counts in
+touched tests; broadened exception handling; changed timeouts, retries,
+exclusions, or CI commands; and test-identity, count, skip, and duration
+comparisons against the base in the same environment. Execution-sensitive path
+changes and unexplained discrepancies require triage even if containers pass.
+Submitted code can manipulate result files and exits in CI and containers alike;
+isolation protects hosts and credentials, not the truth of test results.
+A design and completeness assessment adds findings only when they are backed by
+evidence, and they block only when an explicit requirement is violated, such
+as a policy rule against duplicating a named helper; otherwise they are
+advisory.
+
+Results record the command, environment identity (image digest and tool
+versions), exit status, bounded output, test identity, and commit ids.
+Environment failures end the run as inconclusive; they never become a rejection
+or a pass.
 
 ## 6. Independently challenge the patch
 
-A separate LLM screening session receives the trusted requirements, issue, patch,
-relevant code, and execution evidence without the author's reasoning history.
+A separate session receives the policy's supported-behavior section, the
+validated claim with its evidence, the diff, touched files with their callers
+and shared components found by deterministic search, tests, and the execution
+evidence collected so far. It does not receive the PR description, commit
+messages, author comments, or preflight summaries (SP11).
 
 It traces affected callers and shared components, checks boundary and error
-cases, looks for compatibility changes, and proposes concrete counterexamples.
-The runner executes the additional tests rather than treating generated test
-text as verified evidence.
+cases, looks for compatibility changes, and proposes concrete counterexamples as
+executable tests in the project's declared framework. Separate execution jobs
+on fresh runners with no model credential execute them in containers
+against the head and base commits within policy bounds on count and rounds.
+First validate each expected behavior against a trusted requirement or accepted
+decision and the intended change scope; retaining intentionally replaced
+behavior is not a valid regression expectation. With that basis, head failure
+and base success establishes a regression, including head-only compilation
+failure caused by a broken supported API. Invalid generated tests that fail to
+compile on both revisions are discarded; environment failures are inconclusive.
+Failures on both are pre-existing unless they demonstrate an unmet part of the
+validated fix scope. Non-executable suggestions are advisory and never gate
+admission; unresolved required intent decisions are uncertain and need triage.
 
 Complex or high-impact changes may justify property-based testing, fuzzing, or
-mutation testing. These are selective tools, not universal requirements.
+mutation testing where the policy marks the paths. These are selective tools,
+not universal requirements.
 
 Every blocking finding identifies a concrete scenario, code location, and
-supporting evidence. Speculation is recorded separately and does not
-automatically reject a contribution. Independent sessions can still share model
-blind spots; agreement is not proof.
+supporting evidence. Independent sessions can still share model blind spots;
+agreement is not proof. Model failure in this stage ends the run as
+inconclusive rather than as a pass without a challenge.
 
 ## 7. Regression analysis
 
-The runner executes the project's mandatory suite and supported platform matrix.
-LLM impact analysis can add targeted checks, but cannot remove mandatory ones.
+Baseline results for the unmodified target are reusable only for matching base,
+policy, platform, command/harness, and environment identities. Required missing
+platform baselines are inconclusive; a Linux run cannot substitute for Windows
+coverage (SP12).
 
-Failures are compared with the unmodified target branch to separate introduced
-regressions from existing problems. Changes to shared state, public interfaces,
-dependencies, and build configuration receive additional attention.
+Head results come from steward-controlled container executions and optional
+project CI signals. Signals retain their provenance and may supplement coverage
+only under policy, after workflow/run/attempt, actual tested revision, and
+environment verification. Changed control paths prevent reliance on
+PR-controlled CI. Required missing coverage is inconclusive; baselines must
+match platform, command/harness, and environment, not just commit.
 
-Tests against the integrated target branch matter because a patch that works in
-isolation may fail when combined with recent upstream changes.
+Neither source guarantees result integrity. Triage execution-sensitive changes,
+compare test identities/counts/skips/durations with baselines, and use challenge
+tests as additional evidence. These mitigations reduce risk without proving
+that submitted code or its reporter executed honestly (architecture §4).
+
+Failures are compared with the baseline to separate introduced regressions from
+existing problems; a failing test may be rerun once within budget to mark
+instability. Changes to shared state, public interfaces, dependencies, and
+build configuration require the full suite without impact-based reduction and
+are flagged in the report. LLM impact analysis can add targeted checks but
+cannot remove mandatory ones.
+
+Tests against the integrated result matter because a patch that works in
+isolation may fail when combined with recent upstream changes. The merge commit
+is tested at screening time. In the merge queue, a credential-free relay on
+the queue ref completes and thereby starts the ordinary screening run on the
+default branch against the group commit; that run completes an App check on
+the group commit, separately from each PR's check, and member PRs are not
+re-admitted because queue entry already required the check (SP12). The group
+path skips forms and claim/challenge screening and verifies the mandatory
+suite against a matching baseline. Any enforced member makes the group
+enforced; otherwise the strictest member mode applies. Unknown membership
+or category cannot downgrade enforcement (SP06).
 
 ## 8. Admission and contributor feedback
 
 The intended process is:
 
 ```text
-Contributor preflight
+Contributor preflight: CLI or browser assistant (output is a claim)
         |
         v
-Draft PR -> Trusted automated screening
-                |            |              |
-                v            v              v
-          Needs changes   Uncertain        Pass
-                |            |              |
-                v            v              v
-          Contributor   Maintainer triage  Human review
+PR or issue --> one default-branch run: gate (dedupe, contract, caps/admission,
+                check, ownership) -> intake -> execute -> assess
+                -> bounded execute-N/assess-N pairs -> publish
+                                |
+        +-----------------------+-----------------------+----------------------+
+        v                       v                       v                      v
+  needs-changes             uncertain              inconclusive              pass
+        |                       |                       |                      |
+        v                       v                       v                      v
+  awaiting author        maintainer triage       rerun within limits    ready for review,
+  timers, one report     commands, appeals       or triage              reviewers requested
 ```
 
-Preflight can run locally before a PR exists. Its reports are useful feedback,
-but the trusted maintainer or CI service repeats the checks before admission.
+Preflight can run locally or in the browser before a submission exists. Its
+output is useful feedback but never evidence; the trusted stage repeats every
+check (SP05). LLM-assisted self-review is optional, runs in the CLI with any
+shipped adapter and the contributor's own credential, and discloses what
+leaves the machine; the browser assistant performs no inference and needs no
+inference account.
 
-A screening report includes classification, blockers, uncertainties, executed
-commands, results, and evidence links. The bot updates one concise report rather
-than flooding the discussion with comments.
+Outcomes are `pass`, `needs-changes`, `uncertain`, `inconclusive`,
+`overridden`, and `superseded`. SP13 is the canonical decision table: stale
+snapshots cannot publish; unavailable required steward work is inconclusive;
+unresolved required maintainer decisions are uncertain; contributor omissions
+and validated actionable blockers need changes; all satisfied requirements
+yield pass. Advisory/speculative findings do not block. Overrides are scoped
+and recorded; they cannot waive authentication, freshness, ownership, durable
+evidence, or the shared-head rule. Shared heads are actionable needs-changes
+blockers, resolved by distinct commits or closing the other PRs, not triage
+questions. Queued and awaiting-approval are waiting states, not outcomes.
 
-A required screening check protects merging; it does not itself prevent PR
-creation or review requests. A bot and repository process control admission to
-the review queue. Only passed submissions receive automatic reviewer requests.
+A screening report has a fixed order and length caps: outcome and bound
+identifiers, classification, blockers with scenario, location, evidence link,
+dismissal code, and the specific request, uncertainties for maintainers,
+executed commands and results, the reference table, flagged automated
+activity, what would change the outcome, and the policy revision, steward
+version, and model identity. It contains no statement about the severity of
+the reported problem, no authorship statement, and no praise. The steward
+maintains one report comment per submission, edited in place, and, for PRs, a
+check run created by the App with inline annotations (P07, P08). Issues have
+no commit and therefore no check run; they receive the comment and labels, and
+a passed defect issue enters the ordinary backlog. A well-formed proposal
+passes its submission contract into the proposal backlog as proposal-pending;
+that pass does not constitute acceptance of the proposed change.
 
-Reports are bound to base/head commit IDs and the policy revision. Changes to
-either tested commit invalidate the prior result and trigger applicable checks.
+The operating mode determines visibility and enforcement:
+
+| Mode      | Check run conclusion                                                                                                                                  | Visible output                                                                  |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `observe` | None before a repository gate exists; otherwise `neutral`, explicitly "not enforced"                                                                  | Evidence and metrics only; no comments, labels, reminders, or reviewer requests |
+| `advise`  | `neutral` by default; blocking exceptions below take precedence                                                                                       | Report, labels, review requests                                                 |
+| `enforce` | `success` for pass or an override to pass; `failure` for needs-changes or override to needs-changes; `action_required` for uncertain and inconclusive | Report, labels, review requests                                                 |
+
+A required screening check is bound to the steward App as its expected source.
+When any category is enforced, every PR receives that gate; unenforced categories
+complete it neutral after ownership commitment and category validation,
+without waiting for shadow screening, except shared-head and waiting runs.
+Queued/awaiting-approval checks stay pending; superseded runs may cancel only
+their own pending check and never replace reports/labels. Shared heads never
+receive success or neutral: required checks (or any enforced category) use
+action-required, otherwise an optional check fails. These exceptions precede
+mode mapping. Category ambiguity
+cannot downgrade an enforced change. The check does not prevent PR creation.
+Only passed submissions in feedback-enabled modes receive automatic reviewer
+requests, and a draft PR opened per the template is marked ready for review on
+pass. Observe mode never promotes drafts or requests reviewers; the template
+explains ordinary manual readiness/review for that mode. Reports bind to
+body/linked evidence, persistent author responses, target/base/head, sharing
+PR set, and policy content hash. Steward/provider/model/adapter/runner
+identities are recorded separately as run provenance. A changed input starts a new run through its own event, through
+propagation from a linked issue or a recorded maintainer action, or through
+the policy-change sweep. An unpublished run superseded by a policy change
+is always replaced; `policy_change` governs only rescreening prior published
+outcomes. Linked-issue responses and validation changes propagate, and
+synchronize/closure refresh peers sharing the old or new head. Live PR-link
+reconciliation supplements the index so newly opened PRs are included. When the
+repository gate is active, `gate` creates a fresh check run on every run,
+after deduplication, including intentional same-commit reruns, then commits
+the immutable ownership artifact with that check id. Duplicate held attempts
+cannot replace an active owner of unchanged inputs. The earlier success
+stops counting as soon as
+the new check exists; a head commit shared by several open PRs is never
+certified as success or neutral, because GitHub attaches checks to commits. `publish` stores evidence first, then recomputes the
+snapshot, confirms through the per-submission ownership artifacts that it is
+the newest run, and completes only its own check. Enforced branches also require a merge queue or
+strict up-to-date checks; the steward does not revoke checks when the base
+moves. API outages and event delays can delay supersession; if `gate` cannot
+create the fresh check, the run stops and reports that the earlier
+certification still stands (architecture §10).
+
+Follow-through (SP14): a needs-changes report lists stable, submission-wide
+request numbers, anchored to their durable creation records, and
+says where each answer goes. A new commit or body edit starts a new run, and
+fields and evidence enter only that way. A reply that cites a request number
+becomes part of the snapshot and is assessed for whether it addresses the
+request. Consumed explanations remain snapshot dependencies across report
+edits/reruns until their scope is explicitly retired; edits/deletions remain
+input changes. Deterministic checks precede a model judgment of whether an
+explanation addresses the specific choice with reference to the code. Reminder
+and closure timers are policy settings; closure, when enabled,
+labels the submission stale and states the reopen path, and nothing is deleted.
+
+Maintainer control (SP15): users with write permission issue `/steward`
+commands in conversation comments to rerun, override a specific submission
+snapshot, record authoritative guidance about intent, waive a requirement,
+accept a proposal issue or a PR's claim, record a dismissal code at or after
+closure, confirm or dispute audited runs, or record time spent by activity.
+Authors may rerun and appeal their own submissions; one
+appeal is open at a time, it routes the item to triage, and it stays open until
+a maintainer acts. PR intent acceptance binds to target and canonical
+claim-scope text hash, so implementation pushes retain unchanged intent
+acceptance while technical screening reruns. Scope changes need new
+acceptance. Override and PR-accept commands start fresh owned publication
+runs; commands never complete an old check directly. Guidance authenticates
+maintainer intent, but its prose remains session data and cannot authorize
+tools or change policy. Every override, guidance, waiver, acceptance, and
+resolution is stored
+with actor, reason, and scope, shown in the report, and counted for
+calibration. The steward never argues in threads.
+
+Automated participation (SP16): the steward posts no approvals, reviews,
+severity statements, or praise, never replies to other bots, and ignores its
+own verified report, reminder, usage, follow-up, ready-for-review, label,
+reaction, and maintenance-issue echoes while still processing commands and
+screened-input changes. It flags bot or app comments outside the policy allowlist,
+near-duplicate comments, and reviews that reference nothing in the diff, in a
+capped report section for maintainer attention. Flags never affect the outcome.
+Active moderation is deferred.
 
 ## 9. Components
 
-| Component                        | Responsibility                                                              |
-| -------------------------------- | --------------------------------------------------------------------------- |
-| Versioned quality policy         | Defines behavior, execution requirements, and escalation rules.             |
-| Structured submission schema     | Captures the claim, references, reproduction, and scope.                    |
-| Screening core                   | Coordinates stages and applies deterministic admission rules.               |
-| LLM screening adapters           | Validate claims, inspect patches, and propose counterexamples through APIs. |
-| Repository context retrieval     | Supplies relevant code, documentation, tests, issues, and decisions.        |
-| Isolated test runner             | Executes reproduction, fix, and regression checks.                          |
-| Git adapter                      | Fetches revisions, creates worktrees, and inspects diffs.                   |
-| GitHub adapter                   | Reads submissions and publishes authorized check results and reports.       |
-| Evidence store                   | Persists execution records and findings tied to immutable revisions.        |
-| Local CLI                        | Supports contributor preflight and maintainer-initiated screening.          |
-| Maintainer triage and override   | Resolves ambiguous intent, disputes, and justified exceptions.              |
-| Monitoring and resource controls | Measures quality and workload while bounding cost and runtime.              |
+Patch Steward is a pnpm monorepo (architecture §6):
+
+| Package or directory | Responsibility                                                                                                                                                                                                                   |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core`               | Policy, submission parsing, context retrieval, reference verification, stages, execution planning, decision rules, report composition, evidence records, budgets, ownership/freshness, adapter interfaces and built-in adapters. |
+| `cli`                | `steward init`, `preflight`, `screen`, `replay`, `policy`, and `report` commands, published to npm.                                                                                                                              |
+| `action`             | GitHub JavaScript action that runs the core inside workflow jobs.                                                                                                                                                                |
+| `web`                | Static browser app: contributor submission assistant and maintainer dashboard.                                                                                                                                                   |
+| `.github/workflows`  | Reusable steward workflows called by thin wrappers in target repositories at a pinned version.                                                                                                                                   |
+| `templates`          | Policy skeleton, issue forms, PR template, wrapper workflows, labels, and CODEOWNERS entries installed by `init`.                                                                                                                |
+
+Adapters isolate external systems behind interfaces: LLM (a Copilot SDK
+adapter and an OpenAI-compatible HTTP adapter behind one interface), GitHub
+(REST and GraphQL), Git, runner (Actions container runner, local
+container runner, and an unsandboxed runner usable only for a contributor's own
+code), evidence store (orphan branch or separate repository), and clock and
+identifiers.
+
+The target repository contributes GitHub features rather than code: Actions
+events and reusable workflows, job permissions and environments, artifacts and
+concurrency groups, the Checks API, rulesets, CODEOWNERS, merge queue, labels,
+issue forms and the PR template, draft PRs and review requests, the GitHub App
+identity, Copilot inference with the workflow token, GitHub Pages, an evidence
+branch, and the search API
+(architecture §7).
 
 Components are logical boundaries; they need not become separate services.
 
-## 10. Language and local architecture
+## 10. Language and architecture
 
 Python was initially suggested because the workload centers on orchestration,
 API calls, and structured data. The discussion did not establish a measurable
 Python advantage. The user preferred TypeScript, which is the selected language.
 
 TypeScript offers explicit types for policies, evidence, and workflow states,
-asynchronous orchestration, and code reuse across a CLI, GitHub integration, and
-a potential interface. External data still requires runtime validation; static
+asynchronous orchestration, and code reuse across the CLI, the GitHub action,
+and the browser app. External data still requires runtime validation; static
 types do not validate API responses or LLM output.
 
-The architecture is a TypeScript/Node.js CLI application with an internal core and small
-provider adapters. The same core should serve local execution and CI. It can
-screen repositories written in C++, Rust, Python, TypeScript, or other languages
-by invoking their established tools. Platform-specific build requirements remain
-the responsibility of the configured runner.
+One screening core runs in four topologies (architecture §5):
 
-Builds, tests, and remote model latency are expected to dominate runtime.
-No performance benchmark was conducted during the design discussion.
+| Topology                   | Trigger                                 | Sandbox                                                            | Authority                                                                       |
+| -------------------------- | --------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| GitHub-hosted screening    | Actions events in the target repository | Containers on GitHub-hosted Linux runners, plus project CI signals | Authoritative for admission                                                     |
+| Contributor preflight      | `steward preflight`                     | None; the contributor's own code                                   | Output is a claim                                                               |
+| Maintainer local screening | `steward screen`                        | Local Docker or Podman container                                   | Attributed report; never the required check                                     |
+| Evaluation replay          | `steward replay`                        | Local container                                                    | Frozen historical inputs; remote inference permitted; no live submission writes |
+
+Each event produces one workflow run on the default branch. `gate`
+authenticates, deduplicates, captures inputs, decides contract/caps/admission,
+creates a check when needed, then commits an immutable ownership artifact.
+`intake` validates claims and plans executions; `execute` runs containers;
+`assess` interprets results and plans challenges. Fixed, bounded
+`execute-N`/`assess-N` pairs handle challenge rounds on separate fresh
+runners. Only execution jobs run submitted code; they hold a contents-read
+token and no model credential. `publish` runs after successful commitment
+even if downstream jobs fail or are skipped, persists evidence, checks
+freshness/ownership, and applies the outcome/waiting-state mapping. Failed
+`gate`/`publish` jobs or cancellation may leave pending checks for
+reconciliation.
+
+Only `gate`/`publish` hold App credentials through a default-branch-only
+Environment. An `env` provider key reaches only model jobs through a separate
+Environment; Copilot uses those jobs' `GITHUB_TOKEN` with inference
+permission, without an Environment secret. Private cross-repository evidence
+is read in `gate` and handed off only as authorized bounded data. There is no
+dispatch to another workflow or mutable steward orchestration store:
+ownership artifacts/checks identify owners, run lists serve caps, and
+append-only waiting/action records support resumption (architecture §6.4).
+
+The browser app is a static bundle with no server, no secrets, and no
+inference. The maintenance workflow publishes it to the target repository's GitHub Pages site
+together with JSON generated from the evidence store: the public policy subset,
+a run index, run details, queues, and metrics. The contributor face guides
+intake and hands off through prefilled issue-form URLs or PR body text; the
+maintainer face shows triage, awaiting-author, awaiting-approval, capacity,
+appeal, audit, and proposal-backlog views with ages and changed-input markers,
+per-run cost/usage, evidence, action history, and calibration metrics. Private
+repositories disable public export unless a public subset is approved;
+private evidence and Actions summaries retain visibility without Pages. Every action is a deep link to github.com or
+copyable command text (architecture §6.6).
+
+The core can screen repositories written in C++, Rust, Python, TypeScript, or
+other languages by invoking their established tools inside the policy's runner
+image; how that image is provided or generated is an open decision (§14).
+Builds, tests, and remote model latency are expected to dominate runtime. No
+performance benchmark was conducted during the design discussion.
 
 ## 11. LLM and GitHub connectivity
 
-The local process connects directly to LLM APIs using SDKs or HTTPS. ChatGPT can
-help contributors interactively; unattended screening uses programmatic APIs.
+Inference goes through one provider-independent adapter interface. The core
+submits prepared context, a response schema, and limits; adapters handle
+authentication, request formats, response parsing, usage reporting, and
+provider errors and return one typed result. Version 1 ships two adapters: a
+Copilot SDK adapter, which performs bounded request-response inference with a
+GitHub token and denies every tool, and an OpenAI-compatible HTTP adapter with
+a project-supplied key. The trusted policy selects provider, model, and
+authentication method (`github-token` or `env`); it holds credential
+references, never secrets, and the steward never substitutes a provider or
+model. In Actions the model credential reaches only the model-using jobs
+through job `GITHUB_TOKEN` permissions for Copilot or a separate
+default-branch-only Environment for `env` keys; the CLI
+uses the user's own Copilot login or provider key; containers receive nothing.
+Provider limits may apply per credential, account, organization, or model;
+bounded retries followed by inconclusive apply in every case. Copilot code
+review, the Copilot coding agent, and tool-enabled Copilot sessions are not
+integrated (architecture §6.3, §12).
 
-LLM requests produce validated structured findings, including bug validity,
-evidence, blockers, and uncertainties. Application code decides admission.
-Schema conformance makes responses easier to process but does not make them true.
+LLM requests produce validated structured findings, including claim
+classification, evidence pointers, counterexamples, blockers, and
+uncertainties. The core validates every external input at runtime against a
+schema before use: model output, GitHub API responses, artifacts, and the
+policy itself. Application rules decide admission. Schema conformance makes
+responses easier to process but does not make them true. Model sessions
+receive prepared context from the core and hold no tools in version 1; the
+Copilot adapter runs its runtime in an empty working directory with every
+tool denied, so no repository file or instruction file reaches the model
+except through the core.
 
-The GitHub adapter retrieves PR metadata, issues, diffs, and references, and
-publishes reports or check results with appropriate authorization. Local Git
-handles checkouts and worktrees. Node.js subprocess APIs invoke build and test
-tools; actual untrusted execution must occur behind a sandbox boundary.
+`pull_request_target` runs screen PR opens, commits, edits, reopens,
+ready-for-review transitions, and closures on the default branch,
+independently of project CI. Inert host fetch/checkout is allowed with hooks,
+filters, and credential persistence disabled; submitted code executes only
+in containers (SP17). Issue and comment events handle issue intake, replies, and
+commands; `/steward rerun` calls the screening reusable workflow as a job
+inside the comment run. A credential-free relay for `merge_group` completes
+on the queue ref and thereby starts the screening run on the default branch
+through `workflow_run`; it publishes nothing and holds no secrets. Base-branch
+movement is left to strict up-to-date checks or the merge queue. Maintenance
+runs on `schedule` and on `workflow_dispatch` restricted to the default branch,
+because `workflow_dispatch` otherwise uses the selected ref; it reconciles
+stale checks and missed events and handles timers, queued starts, audits, and
+publication (architecture §6.4).
 
-No hosted backend is required for an on-demand local run. Continuous screening
-requires a trigger: GitHub Actions, a reachable webhook receiver, or a running
-local polling process. A local CLI that is not running cannot receive events.
+A GitHub App provides the bot identity and fine-grained permissions. Its
+installation tokens are minted only in `gate` and `publish`; no webhook
+receiver exists, which is why check-run action buttons are deferred and
+maintainer control uses comment commands. Events created with the App token
+trigger workflows, so the steward ignores its verified report, reminder,
+follow-up, usage, ready-for-review, label/reaction, and maintenance-issue
+echoes while processing commands and input-change events; edited command
+comments are not reprocessed, while edits to snapshot response comments are
+input changes.
+The adapter reads issues, PRs, diffs, files, check suites, workflow runs,
+artifacts, and search results, and writes check runs, one report comment,
+labels, review requests, ready-for-review state, and evidence commits.
 
-Authentication must support the chosen deployment mode. Exact SDKs, credential
-storage, GitHub authentication mode, and API permission scopes remain
-implementation decisions. Publishing or modifying GitHub state must be explicit
-in the tool's operating mode.
+No hosted backend is required. Continuous screening runs in GitHub Actions; the
+local CLI screens on demand with the user's token and cannot receive events.
+Publishing or modifying GitHub state is explicit in the operating mode and, for
+local runs, in a publish flag.
 
 ## 12. Security and resource boundaries
 
-Submitted code executes in disposable environments without LLM API keys, GitHub
-write tokens, host credentials, or sensitive host mounts. Worktrees and Python
-virtual environments are not security sandboxes. Node.js subprocesses alone do
-not create a sandbox either.
+The architecture defines trust zones (architecture §4). Trusted orchestration
+holds least-privilege tokens and runs only the steward core. The sandbox holds
+nothing: no environment secrets, no tokens, no container socket, and no host
+mounts beyond a copied checkout and scratch space; containers run unprivileged
+as a non-root user with CPU, memory, process, and time limits and network
+disabled unless a policy-declared dependency step runs first. Worktrees,
+virtual environments, and plain subprocesses are not sandboxes. Contributor
+preflight runs the contributor's own code without a sandbox, and its results
+are claims.
 
-The trusted orchestrator retains credentials and uses a separate reporting path.
-PR descriptions, repository files, comments, generated output, and logs are
-untrusted data. They cannot override the screening policy or authorize tools.
-Prompt instructions alone do not enforce this boundary.
+Untrusted content includes issue and PR text, diffs, files at the head commit,
+comments, logs, execution output, and LLM output. It enters the core as typed
+data after parsing and schema validation and never reaches a shell, a workflow
+expression, or a tool authorization decision. Prompt instructions alone do not
+enforce this boundary; rules in the core do.
 
-Avoid privileged workflows that check out and execute untrusted PR code.
-Validate artifact provenance and revision identity before publishing a result.
+External CI results remain signals. Verify their workflow/run/attempt, actual
+tested revision, environment, and schema; changed control paths prevent reliance
+on PR-controlled CI. Containers and CI share the risk that submitted code
+manipulates tests, reporters, exits, and result files. Sensitive execution-path
+triage, baseline comparisons, and independent challenge reduce that risk but
+do not eliminate it. Pin steward workflows/actions by immutable commit SHA.
+Artifact identity checks establish provenance, not truth. Evidence writes are
+restricted to the App and maintainers, with local uploads kept non-authoritative.
 
-Run inexpensive checks first. Cache results only when their relevant inputs
-match, cancel superseded runs, and cap execution time, tokens, and repair
-attempts. Use bounded output capture and redact credentials from stored logs.
-Service failure, refusal, malformed output, and missing evidence do not produce
-a pass.
+Run inexpensive checks first: contract checks before any model call,
+deterministic reference checks before claim validation, execution before
+challenge, and challenge last and only for categories that require it. Hard
+call, retry, timeout, resource, and byte limits are enforced; Copilot credit
+limits are soft, checked after each model call, and may overshoot. Usage
+across all sessions/rounds debits one run/stage allowance; exhausted limits
+are never automatically extended. Daily and per-author caps are approximate counts
+taken from GitHub's run list and are documented as cost controls. Inference
+spending is independent of the operating mode, because observe mode runs the
+full pipeline: the contract gate precedes any model call, per-run budgets map
+onto adapter session or request limits, the repository-wide daily cap bounds
+volume across accounts. The optional prior-contribution admission rule may
+delay newcomers until a maintainer admits the submission; approval queue ages
+and abandoned holds expose this O01 tradeoff even in observe mode. Ownership
+and freshness checks, not cancellation, prevent superseded runs from
+publishing. Baselines are cached by
+base commit, policy, platform, command/harness, and environment;
+execution output is captured with bounds and redacted before storage. Daily run
+caps and per-author concurrency caps limit steward cost without judging identity
+(O01). Existing project CI is independent and outside those cost guarantees.
+
+Infrastructure failure, model unavailability or retirement, a missing or
+unusable model credential, a capability mismatch, model refusal, malformed
+structured output after bounded repair, budget exhaustion, environment
+unavailability all end as inconclusive when required work cannot complete.
+Trusted-path changes disqualify PR-controlled CI; missing replacement coverage
+is inconclusive, while execution-sensitive changes require maintainer triage. Missing contributor evidence ends as needs-changes. None produce a
+pass. The threat table in architecture §13 lists mitigations for workflow and
+policy tampering, prompt injection, test weakening, credential exposure, model
+credential exposure, the Copilot runtime's instruction files and tools,
+container escape, forged evidence, cost exhaustion, model failure, provider
+retirement, shared blind spots, log leakage, compromised releases, and event
+loops.
 
 ## 13. Calibration and enforcement
 
-Begin in observation mode on historical and incoming PRs. Measure:
+Every category starts in observe mode: the pipeline runs on incoming
+submissions and an optional bounded backlog, records decisions and evidence,
+and shows no feedback on the submission (SP03), apart from a neutral "not
+enforced" check when another category has enabled the repository gate.
+Maintainer resolutions become
+calibration labels when submissions are merged or closed, including dismissal
+codes recorded with `/steward resolve`. Measure:
 
-- Invalid submissions admitted and valid contributions blocked.
-- Maintainer minutes per admitted PR.
+- Invalid submissions admitted and valid contributions blocked, per category
+  and per decisive stage.
+- Total maintainer minutes per incoming submission and per period, including
+  rejected/abandoned work, triage, appeals, overrides, audits, policy upkeep,
+  and operations. Record setup separately and amortize it over the evaluation
+  period. Categorized `/steward time` entries and repository-level entries
+  provide measurements; missing entries are unknown, not zero. Time-to-merge
+  and review-comment counts remain proxies.
 - Contributor retries and abandonment.
-- Screening cost and latency.
-- Override frequency and reasons.
+- Screening cost and latency, and the inconclusive rate by cause.
+- Override, guidance, waiver, and appeal frequency and reasons.
 
-Enable blocking first for reproducible, well-supported failures. Preserve
-maintainer overrides and audit samples of both passed and blocked submissions.
-The success criterion is reduced maintainer workload without systematically
-excluding valid contributions.
+Before assisted rollout, specify a randomized usual-review control or a matched
+contemporaneous cohort, sampling/labeling coverage, and workload/error
+thresholds. Compare total effort at matched volume and category mix and report
+uncertainty and confounders; before/after observation alone cannot establish
+causal savings. Pair quality labels with the exact screened snapshot: acceptance
+of a revised submission does not establish that its earlier rejection was wrong.
+
+The maintenance workflow samples passed and blocked runs for maintainer audit
+and records the results. Mode changes are per category and recorded with the
+measurements that justified them. Enable enforcement first for categories whose
+evidence is deterministic and well supported, such as bug fixes with
+before-and-after evidence; a rising error rate returns a category to advise.
+Preserve maintainer overrides throughout. The success criterion is reduced
+maintainer workload without systematically excluding valid contributions.
+
+`steward replay` uses a frozen, content-addressed context manifest and evaluation
+cutoff for every item: source, submissions, related discussions, cited pages,
+decisions, and prior dismissals. It never retrieves current search/page results;
+missing historical material remains unavailable. Labels and post-cutoff
+resolutions stay outside the retrieval index. With these controls it reports confusion counts,
+per-stage attribution, cost, latency, and differences from the previous steward
+version (SP04). Evidence-store exports with resolutions become replay datasets
+over time. Audit manifests for leakage; model training may already contain
+public historical answers, so complement them with authorized held-out cases
+and report that limitation (SP04).
 
 ### Historical evaluation cases
 
@@ -318,7 +739,9 @@ excluding valid contributions.
   a curated list of security reports submitted to curl's HackerOne bug-bounty
   program, identified by its maintainer as AI slop. These cases can test whether
   Patch Steward detects unsupported claims and reduces investigation effort.
-  The collection contains security reports, not a list of GitHub pull requests.
+  The collection contains security reports, not a list of GitHub pull requests;
+  because they carry no patches, only claim validation and reference
+  verification apply to them.
 
 Use accessible reports with the relevant historical source revisions and retain
 maintainer resolutions as evaluation labels, withheld from screening inputs.
@@ -332,15 +755,39 @@ effectiveness.
 
 The repository starts with pnpm, strict TypeScript, ESLint, Prettier, Vitest,
 coverage support, an MIT license, and GitHub CI/CD templates. Authored
-documentation is tracked in docs.
+documentation is tracked in docs. The monorepo layout in §9 is planned; the
+current scaffold is a single package.
 
-The sample source is only a toolchain smoke test. No working screening command
-or provider integration is claimed.
+The sample source is only a toolchain smoke test. No working screening command,
+provider integration, workflow, or browser app is claimed.
 
-Decisions still to be made include the policy/report schemas, sandbox technology,
-provider/model selection, context selection strategy, authentication modes,
-evidence retention, numerical resource limits, and measured enforcement
-thresholds. They were not resolved in the conversation.
+Decisions recorded on September 15, 2026 and revised on September 16, 2026
+(architecture §1.2) settle the browser code's role, the absence of browser
+secrets and browser inference, the version-1 submission types, the deferral of
+security reports, the deployment and trigger model, the sandbox model, the
+local CLI scope, the LLM provider and its authentication, preflight inference,
+inference admission, the evidence store, passive handling of automated
+participation, distribution, repository layout, and single-run orchestration
+with ownership commitment and job-level privilege separation. The
+deferred processes (private vulnerability report intake, active moderation of
+review exchanges, non-GitHub report channels) keep reserved hooks in the
+policy and adapter interfaces (processes §6).
+
+Decisions still to be made are implementation details (architecture §15):
+policy, submission, evidence, finding, report, and metrics schemas, including
+the `llm` section; the container image strategy and the network policy for
+dependency installation; the default model per shipped adapter and prompt and
+repair design; the context selection strategy and its token budget; test
+result parsing; the duplicate search method; platform coverage beyond Linux
+containers; numerical limits, timers, retention, and audit sample sizes;
+enforcement thresholds derived from observation; local credential conventions
+and installation-time capability probing; whether read-only Copilot tools
+consult the permission handler; and evidence retention mechanics. Additional
+open details are daily inference aggregation; efficient live PR-link
+reconciliation; ownership artifact naming, retention, and listing consistency;
+Copilot prompt-mode evaluation; fixed round-job expansion and budget handoff;
+and installation confirmation of latest-check and neutral-check semantics.
+Architecture §15 is the authoritative open list.
 
 ## 15. References
 
