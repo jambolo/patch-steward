@@ -66,7 +66,7 @@ replay invokes the same screening stages under these local constraints.
 | SP11 | Independent challenge                   | PR categories per policy                                 | T1, T3                           |
 | SP12 | Regression analysis                     | PRs with code changes; merge queue                       | T1, T3                           |
 | SP13 | Decision, report, and admission         | End of any pipeline                                      | T1, T3                           |
-| SP14 | Contributor follow-through              | `needs-changes`; author replies; schedule                | T1                               |
+| SP14 | Contributor follow-through              | `needs-changes`; author replies                          | T1                               |
 | SP15 | Maintainer triage, override, and appeal | `uncertain`, `inconclusive`, awaiting-approval; commands | T1                               |
 | SP16 | Automated participation hygiene         | Every run; comment events                                | T1                               |
 | SP17 | Sandboxed execution                     | Any execution plan entry                                 | T1, T3, T4; T2 claim-only runner |
@@ -107,7 +107,7 @@ references of their own even when the claim was validated on an issue.
 
 | Field      | Value                                                                                               |
 | ---------- | --------------------------------------------------------------------------------------------------- |
-| Addresses  | P01, P07, P09, O02; invariants 2 and 7                                                              |
+| Addresses  | P01, P09, O02; invariants 2 and 7                                                                   |
 | Actors     | Maintainers; steward policy module                                                                  |
 | Trigger    | Initial authoring; policy change PRs; every run loads the policy                                    |
 | Topologies | All                                                                                                 |
@@ -142,13 +142,12 @@ Steps:
    `insufficient-benefit`, `proposal-required`). Projects extend it. Codes
    appear in reports, overrides, and resolutions and can be shared across
    projects (O02).
-5. Evidence requirements per category, length caps, the code catalog, and the
+5. Evidence requirements per category, the code catalog, and the
    `unrequested_change` setting are published to the Pages data so
    contributors see expectations before submitting (P09).
 
 Controls: schema validation with unknown keys rejected; hard upper bounds on
-limits that a policy cannot exceed; `security.llm` reserved and inert in
-version 1.
+limits that a policy cannot exceed.
 
 Failure handling: an invalid policy on the trusted branch makes every run
 `inconclusive` with a maintainer-facing message. The steward never falls back
@@ -257,8 +256,8 @@ Steps:
 
 1. In `observe`, the pipeline runs on incoming submissions and, optionally, on
    a bounded backlog of recent items started through `workflow_dispatch`.
-   Decisions and evidence are recorded; there is no report, label, reminder,
-   or reviewer request. If a repository gate is already required for other
+   Decisions and evidence are recorded; there is no report, label, or
+   reviewer request. If a repository gate is already required for other
    categories, only the neutral "not enforced" check is visible. Observe mode
    runs the full pipeline and spends inference like any other mode; spending
    controls belong to SP19, not to the mode. Queued and awaiting-approval
@@ -269,8 +268,8 @@ Steps:
 2. Maintainer resolutions become labels for calibration. The `issues` and
    `pull_request_target` `closed` handlers record resolutions; the maintenance
    sweep reconciles missed events. The resolution (merged, closed with a
-   dismissal code from `/steward resolve`, closed by the author, closed by a
-   maintainer without a code, or stale closure by the steward) is a metrics event paired with the steward
+   dismissal code from `/steward resolve`, closed by the author, or closed by
+   a maintainer without a code) is a metrics event paired with the steward
    decision for that snapshot. Reopening restarts screening (SP06).
 3. Rollups computed on schedule: invalid submissions admitted and valid
    contributions blocked by any enforced non-pass outcome, per category and
@@ -390,7 +389,7 @@ Browser assistant steps:
    the expected observable result (exit status or output text), proposed
    scope; for proposals, the problem, the benefit, and any existing acceptance
    or decision. A well-formed new proposal waits for that decision in the proposal backlog.
-4. Client-side checks: required fields, length caps (P07), reference format,
+4. Client-side checks: required fields, reference format,
    presence of a reproduction command, version within the supported list. The
    form has no severity field; severity language in free text triggers a note
    that maintainers assess severity.
@@ -498,9 +497,7 @@ Steps:
    shared-head blocked (architecture §10). Later shadow/evidence failures cannot block that
    category. Issues without a diff use the declared type and claim contract.
 5. Contract check per category: required fields present and non-trivial;
-   a submission over the length caps (P07) is `needs-changes` with a request
-   for a concise version; the steward does not summarize or complete the
-   submission on the author's behalf; severity assertions are ignored;
+   severity assertions are ignored;
    reference requirements are noted for SP07. Reproduction files arrive as
    fenced code blocks in the submission or as files attached to it. Enforce
    policy/hard limits on count, per-file and total bytes, redirects, fetch
@@ -637,8 +634,8 @@ Steps:
 6. Route by the table below; SP13 decides the final outcome. Proposal issues
    are the approved channel for requesting a decision: a well-formed proposal
    without a recorded acceptance is `proposal-pending` and enters the proposal
-   backlog, where it waits for a maintainer decision with no author requests
-   and no closure timer. Acceptance is recorded only by a maintainer's
+   backlog, where it waits for a maintainer decision with no author
+   requests. Acceptance is recorded only by a maintainer's
    `/steward accept` on the issue (SP15), which binds to the issue's content
    hash; the `claim:accepted-proposal` label is an output of that record, and
    a label applied by hand records nothing. An edited proposal whose hash no
@@ -650,15 +647,15 @@ Steps:
    accepts the claim on the PR; `triage` treats the missing intent decision as
    a maintainer question on the PR itself.
 
-| Classification                   | Next step                                                                                                                                                                                                                                                                                                    |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `supported-defect`               | SP09 for issue reproduction when required; SP10/PR plan for a fix                                                                                                                                                                                                                                            |
-| `accepted-proposal`              | Proposal issue goes to SP13 without defect reproduction; PR follows its category plan                                                                                                                                                                                                                        |
-| `proposal-pending`               | Proposal issue: SP13 yields `pass` into the proposal backlog with label `claim:proposal-pending`; no author requests, no timers, not a triage item                                                                                                                                                           |
-| `feature-request`                | Defect claim that is a feature: relabel; if the proposal fields are present, treat as `proposal-pending`; otherwise `needs-changes` requesting the proposal fields (author action, timers apply)                                                                                                             |
-| `unrequested-change`             | PR without an accepted proposal. Under `propose-first` (default): `needs-changes` with code `proposal-required`, satisfied by a linked proposal reaching `accepted-proposal`, by `/steward accept` on the PR, or by a waiver; timers apply. Under `triage`: `uncertain`, maintainer triage, no closure timer |
-| `intended-behavior`, `duplicate` | Evidence-backed contract/claim blocker; SP13 yields `needs-changes`                                                                                                                                                                                                                                          |
-| `uncertain`                      | Maintainer triage; a safe supplied reproduction may still run in SP09 to gather evidence, without treating reproduction as proof of project intent                                                                                                                                                           |
+| Classification                   | Next step                                                                                                                                                                                                                                                                    |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `supported-defect`               | SP09 for issue reproduction when required; SP10/PR plan for a fix                                                                                                                                                                                                            |
+| `accepted-proposal`              | Proposal issue goes to SP13 without defect reproduction; PR follows its category plan                                                                                                                                                                                        |
+| `proposal-pending`               | Proposal issue: SP13 yields `pass` into the proposal backlog with label `claim:proposal-pending`; no author requests, not a triage item                                                                                                                                      |
+| `feature-request`                | Defect claim that is a feature: relabel; if the proposal fields are present, treat as `proposal-pending`; otherwise `needs-changes` requesting the proposal fields (author action)                                                                                           |
+| `unrequested-change`             | PR without an accepted proposal. Under `propose-first` (default): `needs-changes` with code `proposal-required`, satisfied by a linked proposal reaching `accepted-proposal`, by `/steward accept` on the PR, or by a waiver. Under `triage`: `uncertain`, maintainer triage |
+| `intended-behavior`, `duplicate` | Evidence-backed contract/claim blocker; SP13 yields `needs-changes`                                                                                                                                                                                                          |
+| `uncertain`                      | Maintainer triage; a safe supplied reproduction may still run in SP09 to gather evidence, without treating reproduction as proof of project intent                                                                                                                           |
 
 Controls: one session with bounded tokens; retrieval is core-driven; the
 model has no network access and no write capability.
@@ -916,7 +913,7 @@ Steps:
    | Capacity cap reached                                                                                                                                                                  | `queued` lifecycle state, no terminal outcome; keep any check `in_progress`, persist restart record                          |
    | Inference admission required                                                                                                                                                          | `awaiting-approval` lifecycle state, no terminal outcome; keep any check `in_progress`, persist approval item                |
    | Required steward work unavailable through infrastructure/model failure, malformed output, or exhausted budget                                                                         | `inconclusive`; retain any independently established findings                                                                |
-   | Required maintainer decision unresolved: a PR's missing intent decision under `unrequested_change: triage`, execution-sensitive changes, ambiguous category                           | `uncertain`; triage, no awaiting-author closure timer                                                                        |
+   | Required maintainer decision unresolved: a PR's missing intent decision under `unrequested_change: triage`, execution-sensitive changes, ambiguous category                           | `uncertain`; triage                                                                                                          |
    | Required contributor evidence missing, or a validated actionable blocker such as duplicate/intended behavior, `proposal-required` under `propose-first`, or a demonstrated regression | `needs-changes`; specific author requests                                                                                    |
    | All required checks satisfied; only `advisory`/`speculative` findings remain, including a well-formed `proposal-pending` issue                                                        | `pass`                                                                                                                       |
 
@@ -959,7 +956,7 @@ Steps:
    Persist waiting items in evidence, Actions summaries, and authorized queue
    views in every mode; they are not quality outcomes. Then apply the mode
    before submission feedback. `observe` publishes no report,
-   state labels, reminders, or reviewer requests. SP06 already completes any
+   state labels, or reviewer requests. SP06 already completes any
    repository-wide gate for unenforced categories as neutral "not enforced";
    that conclusion does not depend on shadow completion or evidence storage
    and does not claim a pass. `advise` uses a neutral check only outside those exceptions.
@@ -983,7 +980,7 @@ Steps:
    decision. Supersession links are retained in the run history/current report.
 
 Controls: one report comment per submission; bounded edits; only the specific
-command/reminder replies permitted by SP14/SP15 are additional comments.
+command/follow-up replies permitted by SP14/SP15 are additional comments.
 Truncated outputs link to evidence. CODEOWNERS review requests fire
 when a non-draft PR opens, outside steward control, so the template recommends
 drafts for feedback-enabled screening and explains manual promotion in observe mode.
@@ -1004,14 +1001,14 @@ requests issued.
 
 ### SP14. Contributor follow-through
 
-| Field      | Value                                                                                                                                |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Addresses  | P06, P09, P01                                                                                                                        |
-| Actors     | Contributor; issues workflow on comments; maintenance workflow on schedule; session C                                                |
-| Trigger    | Feedback-enabled `needs-changes`; author body edits, commits, or response-comment edits or deletions while awaiting-author; schedule |
-| Topologies | T1                                                                                                                                   |
-| Inputs     | Numbered requests from the report; author responses; policy timers                                                                   |
-| Outputs    | Reruns; state transitions; reminder and closure comments; abandonment events                                                         |
+| Field      | Value                                                                                                                      |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Addresses  | P06, P09, P01                                                                                                              |
+| Actors     | Contributor; issues workflow on comments; session C                                                                        |
+| Trigger    | Feedback-enabled `needs-changes`; author body edits, commits, or response-comment edits or deletions while awaiting-author |
+| Topologies | T1                                                                                                                         |
+| Inputs     | Numbered requests from the report; author responses; policy follow-up limit                                                |
+| Outputs    | Reruns; state transitions; follow-up comments; abandonment events                                                          |
 
 Steps:
 
@@ -1029,8 +1026,7 @@ Steps:
    silent truncation or id reuse. Each request states where its answer goes: fields, references,
    reproductions, and declared tests enter the submission body (an edit) or a
    commit; explanations enter as a conversation comment that cites the
-   request number. The submission is labeled `awaiting-author` and timers
-   start.
+   request number. The submission is labeled `awaiting-author`.
 2. A new commit or body edit starts a new run (SP06). A comment without a
    commit is parsed deterministically for responses that cite request
    numbers; those responses join the snapshot as author responses (§0.1), so
@@ -1046,27 +1042,22 @@ Steps:
    concise follow-up per cycle, bounded by policy. Under `propose-first`, a `proposal-required` request is
    addressed by any acceptance path: the linked proposal issue reaches
    `accepted-proposal`, a maintainer runs `/steward accept` on the PR, or a
-   maintainer waives the requirement. Waiting for a maintainer's proposal
-   decision is not author inactivity: while a linked `proposal-pending` issue
-   is open, the PR's reminder and closure timers pause.
-3. At the reminder timer, one reminder is posted. At the closure timer, if
-   enabled, the submission is closed with label `stale` and a comment stating
-   the reopen path: reopen the submission, which restarts screening, and push
-   a commit or reply; the author may also run `/steward rerun` on their own
-   reopened submission. Nothing is deleted.
-4. Closure by a maintainer or by the author ends the timers and records the
-   resolution (SP03). A closed submission is not screened; reopening restarts
+   maintainer waives the requirement.
+3. An `awaiting-author` submission keeps that state until its author acts or
+   the submission is closed; the dashboard's awaiting-author view shows its
+   age (architecture §6.6). Closure by a maintainer or by the author records
+   the resolution (SP03). A closed submission is not screened; reopening restarts
    screening. Abandonment is recorded as a metrics event. Maintainers may mark
    abandoned work as adoptable; the steward only reports it. Closing a PR that
    shared its head commit with other open PRs, or pushing away from that head,
    rescreens those PRs
    (architecture §6.4).
 
-Controls: at most one steward reply per author action plus timers; only the
-author or collaborators move the state; no repeated reminders.
+Controls: at most one steward reply per author action; only the author or
+collaborators move the state.
 
 Failure handling: model failure in the responsiveness assessment leaves the
-state unchanged and routes the item to triage at the next timer.
+request open and routes the item to triage.
 
 Measures: retries; time in `awaiting-author`; abandonment; closures and
 reopens.
@@ -1137,9 +1128,9 @@ Steps:
    author responses in the follow-through flow. Maintainers can point to the
    report's evidence and codes instead of restating a judgment (P11).
 
-Controls: permission checks; ignore verified App echoes, including reminder,
-follow-up, usage, ready-for-review, and maintenance-issue events (architecture
-§6.4), and unauthorized commands; deduplicate by comment id; rate limits on command
+Controls: permission checks; ignore verified App echoes, including follow-up,
+usage, ready-for-review, and maintenance-issue events (architecture §6.4),
+and unauthorized commands; deduplicate by comment id; rate limits on command
 handling. Authors may appeal their own submissions.
 
 Failure handling: an unparseable command from an authorized user receives a
@@ -1170,8 +1161,8 @@ Steps:
    Heuristics are policy-configurable; a model assessment is optional and
    never changes the outcome. Flags are report annotations, not findings, and
    carry no severity.
-3. Not performed in version 1: minimizing or hiding comments, locking threads,
-   setting interaction limits.
+3. The steward does not minimize or hide comments, lock threads, or set
+   interaction limits.
 4. The steward runs only the configured model on live submissions;
    experimental evaluation runs in T4 so that project participants are not
    reviewers of experimental output (P08).
@@ -1365,8 +1356,8 @@ Steps:
     screening; labels never authorize inference. The admission persists for
     this submission until revoked or closed, not for other submissions by
     the author. Default `all` admits every contract-compliant submission.
-    No author-inactivity timers run during a hold. Track wait time, abandoned
-    holds, and acceptance after admission to measure the O01 tradeoff.
+    Track wait time, abandoned holds, and acceptance after admission to
+    measure the O01 tradeoff.
 11. Model availability probe: on schedule, the maintenance workflow sends a
     bounded synthetic request with no submission content through the
     configured adapter and model, in a job that holds only the model
@@ -1434,13 +1425,3 @@ the official report.
 Failure handling: as in the pipeline processes.
 
 Measures: local runs published.
-
-## 6. Deferred processes
-
-Reserved for later versions; the architecture keeps the slots.
-
-| Process                                   | Why deferred                                                                             | Reserved hooks                                                                  |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Private vulnerability report intake       | No Actions trigger for advisory events; confidentiality of report content in model calls | `security.llm` policy setting; App permission for advisories; scheduled polling |
-| Active automated-participation moderation | Moderation is a governance act with side effects; passive flagging first (P08)           | Policy hygiene section; GitHub moderation APIs                                  |
-| Non-GitHub report channels                | Different intake formats and identity models                                             | Submission adapter interface                                                    |

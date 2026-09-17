@@ -2,8 +2,7 @@
 
 Patch Steward proposes local and GitHub-hosted tools to help contributors and
 maintainers validate, verify, improve, and screen GitHub issues and pull
-requests before substantive maintainer review. Private vulnerability report
-intake is deferred.
+requests before substantive maintainer review.
 
 ## Goal
 
@@ -41,13 +40,15 @@ action and workflows, browser app, LLM and GitHub adapters, and sandboxed runner
 are not implemented. The sample source and test only verify the development
 toolchain.
 
+The [user manual](docs/user-manual/README.md) covers scaffold setup, proposed
+workflows, configuration, and troubleshooting, with explicit documentation gaps.
+
 The [whitepaper](docs/whitepaper.md) connects these problems to the proposed
 methodology, requirements, architecture, and decisions. The
 [architecture](docs/architecture.md) records the selected components, trust
 boundaries, and GitHub features; the [processes](docs/processes.md) define
 each screening, feedback, and calibration process (SP01–SP20). Version 1
-screens GitHub issues and pull requests in public or private repositories; private vulnerability reports and
-active moderation of review exchanges are deferred.
+screens GitHub issues and pull requests in public or private repositories.
 
 ## Local execution and integrations
 
@@ -86,6 +87,8 @@ pnpm coverage
   policy, data model, states, security, and open implementation decisions.
 - docs/processes.md: the processes SP01–SP20 with triggers, steps, controls,
   failure handling, and measures.
+- docs/deferred.md: designs of features excluded from version 1 (DF01–DF09);
+  the other documents assume they will not be implemented.
 - .github/workflows/: scaffold CI and release automation.
 
 ## Automation

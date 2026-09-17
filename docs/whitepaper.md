@@ -59,8 +59,7 @@ The architecture and processes selected on September 15, 2026 are recorded in
 [architecture.md](architecture.md) and [processes.md](processes.md). Sections
 9–14 summarize the design; §§2–8 explain its methodology. Process identifiers
 (SP01–SP20) and architecture references point to the detailed design. Version 1 screens GitHub issues and pull
-requests in public or private repositories; private vulnerability reports and active moderation of review
-exchanges are deferred (architecture §1.1).
+requests in public or private repositories (architecture §1.1).
 
 ## 2. Goals and limits
 
@@ -118,7 +117,7 @@ CODEOWNERS, defines:
   project's own components, and the documents and decision records that
   stages may cite.
 - Change categories and the evidence required for each.
-- Submission requirements: fields, length caps, references, and whether a PR
+- Submission requirements: fields, references, and whether a PR
   must link a validated issue.
 - Required build, test, lint, and static-analysis commands and the platform
   matrix.
@@ -134,7 +133,7 @@ CODEOWNERS, defines:
   rule, as credential references only; no default provider is substituted.
 - Operating mode per category: observe, advise, or enforce, with neutral gate
   checks for unenforced categories when a repository-wide check is required.
-- Follow-through timers, passive hygiene heuristics, evidence retention and
+- The follow-up limit, passive hygiene heuristics, evidence retention and
   publication settings, and the dismissal-code catalog.
 
 A PR may propose policy changes, but cannot make those changes govern its own
@@ -196,7 +195,7 @@ For example, a test that expects an intentionally unsupported input to succeed
 does not establish a defect. Ambiguous intent enters a small maintainer triage
 queue before substantial implementation review. Proposal issues are the
 channel for requesting a decision: a well-formed one is `proposal-pending` and
-waits in the proposal backlog, without author requests or timers, until a
+waits in the proposal backlog, without author requests, until a
 maintainer accepts or declines it through a recorded command (labels are
 outputs of that record, never inputs). A PR that implements a feature without an
 accepted proposal is returned to its author with the code `proposal-required`
@@ -351,7 +350,7 @@ PR or issue --> one default-branch run: gate (dedupe, contract, caps/admission,
         |                       |                       |                      |
         v                       v                       v                      v
   awaiting author        maintainer triage       rerun within limits    ready for review,
-  timers, one report     commands, appeals       or triage              reviewers requested
+  one report             commands, appeals       or triage              reviewers requested
 ```
 
 Preflight can run locally or in the browser before a submission exists. Its
@@ -388,11 +387,11 @@ that pass does not constitute acceptance of the proposed change.
 
 The operating mode determines visibility and enforcement:
 
-| Mode      | Check run conclusion                                                                                                                                  | Visible output                                                                  |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| `observe` | None before a repository gate exists; otherwise `neutral`, explicitly "not enforced"                                                                  | Evidence and metrics only; no comments, labels, reminders, or reviewer requests |
-| `advise`  | `neutral` by default; blocking exceptions below take precedence                                                                                       | Report, labels, review requests                                                 |
-| `enforce` | `success` for pass or an override to pass; `failure` for needs-changes or override to needs-changes; `action_required` for uncertain and inconclusive | Report, labels, review requests                                                 |
+| Mode      | Check run conclusion                                                                                                                                  | Visible output                                                       |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `observe` | None before a repository gate exists; otherwise `neutral`, explicitly "not enforced"                                                                  | Evidence and metrics only; no comments, labels, or reviewer requests |
+| `advise`  | `neutral` by default; blocking exceptions below take precedence                                                                                       | Report, labels, review requests                                      |
+| `enforce` | `success` for pass or an override to pass; `failure` for needs-changes or override to needs-changes; `action_required` for uncertain and inconclusive | Report, labels, review requests                                      |
 
 A required screening check is bound to the steward App as its expected source.
 When any category is enforced, every PR receives that gate; unenforced categories
@@ -439,9 +438,9 @@ becomes part of the snapshot and is assessed for whether it addresses the
 request. Consumed explanations remain snapshot dependencies across report
 edits/reruns until their scope is explicitly retired; edits/deletions remain
 input changes. Deterministic checks precede a model judgment of whether an
-explanation addresses the specific choice with reference to the code. Reminder
-and closure timers are policy settings; closure, when enabled,
-labels the submission stale and states the reopen path, and nothing is deleted.
+explanation addresses the specific choice with reference to the code. An
+awaiting-author submission keeps that state until its author acts or it is
+closed; reopening restarts screening.
 
 Maintainer control (SP15): users with write permission issue `/steward`
 commands in conversation comments to rerun, override a specific submission
@@ -463,12 +462,12 @@ calibration. The steward never argues in threads.
 
 Automated participation (SP16): the steward posts no approvals, reviews,
 severity statements, or praise, never replies to other bots, and ignores its
-own verified report, reminder, usage, follow-up, ready-for-review, label,
+own verified report, usage, follow-up, ready-for-review, label,
 reaction, and maintenance-issue echoes while still processing commands and
 screened-input changes. It flags bot or app comments outside the policy allowlist,
 near-duplicate comments, and reviews that reference nothing in the diff, in a
 capped report section for maintainer attention. Flags never affect the outcome.
-Active moderation is deferred.
+It does not hide comments, lock threads, or set interaction limits.
 
 ## 9. Components
 
@@ -603,15 +602,14 @@ through `workflow_run`; it publishes nothing and holds no secrets. Base-branch
 movement is left to strict up-to-date checks or the merge queue. Maintenance
 runs on `schedule` and on `workflow_dispatch` restricted to the default branch,
 because `workflow_dispatch` otherwise uses the selected ref; it reconciles
-stale checks and missed events and handles timers, queued starts, audits, and
+stale checks and missed events and handles queued starts, audits, and
 publication (architecture §6.4).
 
 A GitHub App provides the bot identity and fine-grained permissions. Its
 installation tokens are minted only in `gate` and `publish`; no webhook
-receiver exists, which is why check-run action buttons are deferred and
-maintainer control uses comment commands. Events created with the App token
-trigger workflows, so the steward ignores its verified report, reminder,
-follow-up, usage, ready-for-review, label/reaction, and maintenance-issue
+receiver exists, so maintainer control uses comment commands. Events created
+with the App token trigger workflows, so the steward ignores its verified
+report, follow-up, usage, ready-for-review, label/reaction, and maintenance-issue
 echoes while processing commands and input-change events; edited command
 comments are not reprocessed, while edits to snapshot response comments are
 input changes.
@@ -763,15 +761,12 @@ provider integration, workflow, or browser app is claimed.
 
 Decisions recorded on September 15, 2026 and revised on September 16, 2026
 (architecture §1.2) settle the browser code's role, the absence of browser
-secrets and browser inference, the version-1 submission types, the deferral of
+secrets and browser inference, the version-1 submission types, the handling of
 security reports, the deployment and trigger model, the sandbox model, the
 local CLI scope, the LLM provider and its authentication, preflight inference,
 inference admission, the evidence store, passive handling of automated
 participation, distribution, repository layout, and single-run orchestration
-with ownership commitment and job-level privilege separation. The
-deferred processes (private vulnerability report intake, active moderation of
-review exchanges, non-GitHub report channels) keep reserved hooks in the
-policy and adapter interfaces (processes §6).
+with ownership commitment and job-level privilege separation.
 
 Decisions still to be made are implementation details (architecture §15):
 policy, submission, evidence, finding, report, and metrics schemas, including
@@ -779,7 +774,7 @@ the `llm` section; the container image strategy and the network policy for
 dependency installation; the default model per shipped adapter and prompt and
 repair design; the context selection strategy and its token budget; test
 result parsing; the duplicate search method; platform coverage beyond Linux
-containers; numerical limits, timers, retention, and audit sample sizes;
+containers; numerical limits, retention, and audit sample sizes;
 enforcement thresholds derived from observation; local credential conventions
 and installation-time capability probing; whether read-only Copilot tools
 consult the permission handler; and evidence retention mechanics. Additional

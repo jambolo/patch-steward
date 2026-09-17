@@ -19,6 +19,11 @@ issue describes a failure mechanism, supporting observations, and its consequenc
 Interpretations that go beyond a source's direct observations are identified as
 inferences.
 
+Priorities apply only to detailed issues. They reflect the urgency expressed in
+the cited maintainer accounts and policies: **A** threatens maintainer capacity,
+security triage, or retention; **B** creates substantial recurring review work;
+and **C** is a secondary but material source of review inefficiency.
+
 The sources have different evidentiary roles. Maintainer accounts describe local
 experience; policies establish expectations; discussions and event abstracts
 identify concerns or proposed responses. Policy adoption does not demonstrate
@@ -34,7 +39,7 @@ triage burdens in 2016. [Peterson](https://www.locrian.net/writing/open-source-s
 
 ## 3. Detailed issues
 
-### P01. Low-value submissions consume disproportionate review effort
+### P01. Low-value submissions consume disproportionate review effort — Priority: A
 
 Low-quality reports and patches can be generated faster than maintainers can
 validate them. Each submission may require code inspection, design judgment, and
@@ -49,7 +54,7 @@ unresolved design decisions and verification work with the patch. Maintainers
 then supply the expensive judgment that the submission process omitted, leaving
 less attention for higher-value work. [LLVM policy](https://llvm.org/docs/AIToolPolicy.html).
 
-### P02. Professional presentation conceals unsupported claims
+### P02. Professional presentation conceals unsupported claims — Priority: B
 
 Invalid reports can look as credible as valid ones. Fluent explanations,
 technical detail, and proposed fixes make unsupported allegations expensive to
@@ -64,7 +69,7 @@ Apparent completeness can therefore increase investigation time without adding
 verifiable information. The burden of correcting invented evidence falls on the
 project receiving it. [Django policy change](https://github.com/django/django/commit/0f60102444d8a2cfb662a7b11b3911b52567ee54).
 
-### P03. Reported behavior is mistaken for a justified defect
+### P03. Reported behavior is mistaken for a justified defect — Priority: B
 
 A plausible issue description can be accepted as a requirement before anyone
 checks whether it represents a real problem. When generated issues feed directly
@@ -79,7 +84,7 @@ when its purpose was to disable the protocol. Missing context turns protective
 or intended behavior into an allegation that maintainers must explain and refute.
 [Larson, December 2024](https://sethmlarson.dev/slop-security-reports).
 
-### P04. Reproduction and applicability are left for maintainers to establish
+### P04. Reproduction and applicability are left for maintainers to establish — Priority: A
 
 Reports can present a hypothetical failure without demonstrating it in a
 maintained version under realistic usage. Findings may depend on invented code,
@@ -95,7 +100,7 @@ applicability, maintainers must supply the investigation that connects the
 allegation to actual software behavior.
 [Curl report collection](https://gist.github.com/bagder/07f7581f6e3d78ef37dfbfc81fd1d1cd).
 
-### P05. Passing checks do not establish that a patch serves the project
+### P05. Passing checks do not establish that a patch serves the project — Priority: B
 
 A patch can pass tests while implementing unwanted behavior, overlooking existing
 helpers, or introducing an unsuitable design. Automated checks cannot resolve
@@ -104,7 +109,7 @@ still determine whether the problem deserves a fix and whether the implementatio
 fits the codebase; correcting a plausible but misguided patch can cost more than
 implementing the intended change themselves. [Ruiz](https://tldraw.dev/blog/stay-away-from-my-trash).
 
-### P06. Contributors submit work they cannot explain or finish
+### P06. Contributors submit work they cannot explain or finish — Priority: B
 
 Generating a patch does not ensure its author understands the change or can
 respond to review. When contributors disappear after requests for revision,
@@ -117,7 +122,7 @@ implementation choices or correct defects, technical questions remain unresolved
 Maintainers must reconstruct the reasoning and finish the work themselves or
 abandon a review in which they have already invested time. [Selenium policy PR](https://github.com/SeleniumHQ/selenium/pull/17043).
 
-### P07. Excessive length and premature severity claims obstruct triage
+### P07. Excessive length and premature severity claims obstruct triage — Priority: C
 
 Long initial reports force maintainers to process more material than they need
 to decide whether an issue merits investigation. Repeated explanations, elaborate
@@ -133,7 +138,7 @@ depends on project context. The result is more reading and correction before
 reporter and maintainer can begin a useful technical exchange.
 [Larson, February 2026](https://sethmlarson.dev/respecting-maintainer-time-should-be-in-security-policies).
 
-### P08. Low-quality automated participation creates additional review work
+### P08. Low-quality automated participation creates additional review work — Priority: B
 
 Generated approvals, misleading advice, premature issue claims, and exchanges
 between agents add activity without advancing the work. Legitimate contributors
@@ -142,7 +147,7 @@ restore a shared understanding. Using live repositories to evaluate models also
 turns project participants into unpaid reviewers of experimental output.
 [Jalali and Osborne](https://blog.probabl.ai/maintaining-open-source-age-of-gen-ai).
 
-### P09. Incentives reward submissions while investigation costs fall elsewhere
+### P09. Incentives reward submissions while investigation costs fall elsewhere — Priority: B
 
 Potential bounty payments encourage speculative reporting, while the recipient
 pays the cost of checking unsuccessful claims. Reputation penalties offer weak
@@ -157,7 +162,7 @@ credit can outweigh the incentive to help finish the work, leaving maintainers
 with both investigation and expectation management. Report quality alone does
 not establish an individual reporter's motive. [Peterson](https://www.locrian.net/writing/open-source-security/).
 
-### P10. Security queues displace ordinary development and create delays
+### P10. Security queues displace ordinary development and create delays — Priority: A
 
 Security claims receive urgent attention before their validity is known. A large
 influx can therefore displace ordinary maintenance even when few reports prove
@@ -172,7 +177,7 @@ contributors and users whose needs remain unresolved while maintainers work
 through low-quality reports.
 [Log4j discussion](https://github.com/apache/logging-log4j2/discussions/4052).
 
-### P11. Repeated investigation damages motivation and retention
+### P11. Repeated investigation damages motivation and retention — Priority: A
 
 Repeatedly investigating invalid reports produces frustration, stress, and a
 sense that scarce volunteer effort is being wasted. Confidential security work
