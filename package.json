@@ -1,6 +1,6 @@
 {
   "name": "patch-steward",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Assist maintainers by screening, validating, verifying, and improving GitHub issues and pull requests before human review.",
   "scripts": {
     "build": "tsc",
